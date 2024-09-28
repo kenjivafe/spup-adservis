@@ -2,17 +2,40 @@
     "name": "laravel/laravel",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.1",
+        "aymanalhattami/filament-slim-scrollbar": "^2.0",
+        "barryvdh/laravel-dompdf": "^2.2",
+        "barryvdh/laravel-snappy": "^1.0",
+        "bezhansalleh/filament-shield": "^3.2",
+        "filament/actions": "3.2.78",
+        "filament/filament": "3.2.78",
+        "filament/forms": "3.2.78",
+        "filament/infolists": "3.2.78",
+        "filament/notifications": "3.2.78",
+        "filament/spatie-laravel-media-library-plugin": "3.2.78",
+        "guava/filament-clusters": "^1.4",
         "guzzlehttp/guzzle": "^7.2",
+        "joaopaulolndev/filament-edit-profile": "^1.0",
+        "knplabs/knp-snappy": "^1.5",
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
-        "laravel/tinker": "^2.8"
+        "laravel/tinker": "^2.8",
+        "livewire/livewire": "^3.5",
+        "malzariey/filament-daterangepicker-filter": "^2.7",
+        "saade/filament-autograph": "^3.1",
+        "saade/filament-fullcalendar": "3.0",
+        "spatie/laravel-activitylog": "^4.8",
+        "spatie/laravel-permission": "^6.7",
+        "spatie/laravel-sluggable": "^3.6"
     },
     "require-dev": {
-        "fakerphp/faker": "^1.9.1",
+        "fakerphp/faker": "^1.23",
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.18",
         "mockery/mockery": "^1.4.4",
@@ -35,7 +58,8 @@
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
