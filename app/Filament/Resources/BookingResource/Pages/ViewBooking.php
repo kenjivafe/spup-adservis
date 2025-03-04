@@ -4,12 +4,17 @@ namespace App\Filament\Resources\BookingResource\Pages;
 
 use App\Filament\Resources\BookingResource;
 use App\Models\Booking;
+use App\Models\Venue;
+use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Filament\Actions;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Textarea;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Facades\DB;
+use Spatie\Browsershot\Browsershot;
 
 class ViewBooking extends ViewRecord
 {
@@ -18,6 +23,74 @@ class ViewBooking extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('cancel')
+            ->label('Cancel Booking')
+            ->color('gray')
+            ->form([
+                Textarea::make('cancelation_reason')
+                    ->label('Cancelation Reason')
+                    ->required()
+                    ->placeholder('Please provide a reason for cancelation.'),
+            ])
+            ->requiresConfirmation()
+            ->action(function (Booking $booking, array $data,): void {
+                $cancelationReason = $data['cancelation_reason'];
+
+                DB::transaction(function () use ($booking, $cancelationReason) {
+                    $booking->update([
+                        'status' => 'Canceled',
+                        'canceled_by' => auth()->id(),
+                        'canceled_at' => Carbon::now(),
+                        'cancelation_reason' => $cancelationReason
+                    ]);
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $booking->getKey()]));
+                });
+            })
+            ->visible(fn ($record) =>
+                $record->status != 'Completed' &&
+                $record->status != 'Rejected' &&
+                empty($record->canceled_by) &&
+                auth()->user()->can('Manage Job Orders')
+            )
+            ->icon('heroicon-o-no-symbol'),
+
+            Action::make('Generate PDF')
+                ->button()
+                ->color('gray')
+                ->label('PDF')
+                ->icon('heroicon-s-document-arrow-down')
+                ->action(function (Booking $record) {
+                    // Create HTML content using a template engine like Blade
+                    $html = view('pdfs.venue-booking', ['booking' => $record, 'title' => 'UNIV-029'])->render();
+
+                    // Generate PDF
+                    // Instantiate DOMPDF
+                    $dompdf = new Dompdf();
+
+                    // Set DOMPDF options if needed (for example, for custom margins, etc.)
+                    $options = new Options();
+                    $options->set('isHtml5ParserEnabled', true); // Enable HTML5 parsing
+                    $options->set('isPhpEnabled', true); // Enable PHP functions like include()
+                    $dompdf->setOptions($options);
+
+                    // Load HTML content
+                    $dompdf->loadHtml($html);
+
+                    // (Optional) Set paper size and orientation (A4, Portrait/Landscape)
+                    $dompdf->setPaper('A4', 'landscape');
+
+                    // Render PDF (first pass to parse HTML and CSS)
+                    $dompdf->render();
+
+                    // Save the generated PDF to a file
+                    $output = $dompdf->output();
+                    $filePath = public_path('venue-booking-' . $record->id . '.pdf');
+                    file_put_contents($filePath, $output);
+
+                    // Return the generated PDF for download
+                    return response()->download($filePath)->deleteFileAfterSend(true);
+                }),
+
             ActionGroup::make([
                 Action::make('note')
                     ->label('Note')
@@ -26,6 +99,7 @@ class ViewBooking extends ViewRecord
                             // Update the status of the current booking to 'Approved'
                             $booking->update([
                                 'noted_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                                'noted_at' => Carbon::now(),
                             ]);
                         });
                     })
@@ -41,7 +115,8 @@ class ViewBooking extends ViewRecord
                     ->action(function (Booking $booking): void {
                         $booking->update([
                             'status' => 'Rejected',
-                            'rejected_by' => auth()->user()->id
+                            'rejected_by' => auth()->user()->id,
+                            'rejected_at' => Carbon::now(),
                         ]);
                     })
                     ->visible(fn ($record) =>
@@ -52,6 +127,15 @@ class ViewBooking extends ViewRecord
                     ->icon('heroicon-s-x-circle')
                     ->color('danger'),
                 ])->label('Approval')->icon('heroicon-m-chevron-down')->button(),
+
+            // Actions\EditAction::make()
+            //     ->color('gray')
+            //     ->label('Edit Booking')
+            //     ->icon('heroicon-o-pencil-square')
+            //     ->visible(function ($record) {
+            //         return auth()->id() === $record->person_responsible;
+            //     }),
+
             ActionGroup::make([
                 Action::make('approve')
                     ->label('Approve')
@@ -60,6 +144,8 @@ class ViewBooking extends ViewRecord
                             // Update the status of the current booking to 'Approved'
                             $booking->update([
                                 'approved_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                                'approved_at' => Carbon::now(),
+                                'status' => 'Approved',
                             ]);
 
                             // Find and update conflicting bookings
@@ -102,6 +188,7 @@ class ViewBooking extends ViewRecord
                             $booking->update([
                                 'status' => 'Rejected',
                                 'rejected_by' => auth()->id(),
+                                'rejected_at' => Carbon::now(),
                                 'rejection_reason' => $rejectionReason,
                             ]);
                             $this->redirect($this->getResource()::getUrl('view', ['record' => $booking->getKey()]));
@@ -116,44 +203,6 @@ class ViewBooking extends ViewRecord
                         )
                     ->icon('heroicon-s-x-circle'),
             ])->label('Approval')->icon('heroicon-m-chevron-down')->button(),
-
-
-            Actions\EditAction::make()
-                ->label('Edit Booking')
-                ->icon('heroicon-o-pencil-square')
-                ->visible(function ($record) {
-                    return auth()->id() === $record->person_responsible;
-                }),
-
-            Actions\Action::make('cancel')
-                ->label('Cancel Job Order')
-                ->color('danger')
-                ->form([
-                    Textarea::make('cancelation_reason')
-                        ->label('Cancelation Reason')
-                        ->required()
-                        ->placeholder('Please provide a reason for cancelation.'),
-                ])
-                ->requiresConfirmation()
-                ->action(function (Booking $booking, array $data,): void {
-                    $cancelationReason = $data['cancelation_reason'];
-
-                    DB::transaction(function () use ($booking, $cancelationReason) {
-                        $booking->update([
-                            'status' => 'Canceled',
-                            'canceled_by' => auth()->id(),
-                            'cancelation_reason' => $cancelationReason
-                        ]);
-                        $this->redirect($this->getResource()::getUrl('view', ['record' => $booking->getKey()]));
-                    });
-                })
-                ->visible(fn ($record) =>
-                    $record->status != 'Completed' &&
-                    $record->status != 'Rejected' &&
-                    empty($record->canceled_by) &&
-                    auth()->user()->can('Manage Job Orders')
-                )
-                ->icon('heroicon-o-no-symbol'),
         ];
     }
 }

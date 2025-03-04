@@ -24,9 +24,12 @@ class ParkingStickerApplication extends Model implements HasMedia
         'assessment_attachment',
         'status',
         'approved_by',
+        'approved_at',
         'rejected_by',
+        'rejected_at',
         'rejection_reason',
         'revoked_by',
+        'revoked_at',
         'revocation_reason',
         'expiration_date'
     ];
@@ -55,6 +58,10 @@ class ParkingStickerApplication extends Model implements HasMedia
         'expiration_date' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'recommended_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'revoked_at' => 'datetime',
         // other datetime fields as necessary
     ];
 }

@@ -30,6 +30,8 @@ class UserProfile extends EditProfileForm
 
         $this->userClass = get_class($this->user);
 
+        // dd('User Avatar URL:', [$this->user->avatar_url]);
+
         $this->form->fill($this->user->only('avatar_url', 'name', 'surname', 'email', 'phone'));
     }
 
@@ -46,6 +48,7 @@ class UserProfile extends EditProfileForm
                             ->label(__('filament-edit-profile::default.avatar'))
                             ->avatar()
                             ->imageEditor()
+                            // ->disk('public') // Ensure this is explicitly set
                             ->directory(filament('filament-edit-profile')->getAvatarDirectory())
                             ->rules(filament('filament-edit-profile')->getAvatarRules())
                             ->hidden(! filament('filament-edit-profile')->getShouldShowAvatarForm()),

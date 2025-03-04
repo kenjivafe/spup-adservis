@@ -4,6 +4,7 @@ namespace App\Filament\Resources\JobOrderResource\Pages;
 
 use App\Filament\Resources\JobOrderResource;
 use App\Models\Equipment;
+use App\Models\JobOrder;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -28,12 +29,16 @@ class CreateJobOrder extends CreateRecord
         return $data;
     }
 
-    protected function afterSave(): void
-    {
-        // Get the equipment IDs from the form state
-        $equipmentIds = $this->record->equipment->pluck('id')->toArray();
+    // protected function afterCreate(): void
+    // {
+    //     $jobOrder = $this->record;
 
-        // Update the status of the selected equipment to 'Unavailable'
-        Equipment::whereIn('id', $equipmentIds)->update(['status' => 'Unavailable']);
-    }
+    //     foreach ($jobOrder->jobOrderEquipments as $jobOrderEquipment) {
+    //         $equipment = $jobOrderEquipment->equipment;
+    //         if ($equipment) {
+    //             $equipment->markAsInactive();
+    //             $equipment->save();
+    //         }
+    //     }
+    // }
 }

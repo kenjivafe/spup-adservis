@@ -29,7 +29,17 @@ class CalendarWidget extends FullCalendarWidget
                 ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
                 ->columns(2)
                 ->schema([
-                    Placeholder::make('person_responsible')
+                    Hidden::make('date_requested')
+                        ->default(function () {
+                            return now('Asia/Manila')->format('Y-m-d H:i');
+                        })
+                        ->dehydrateStateUsing(fn ($state) => $state ?? now('Asia/Manila')->format('Y-m-d H:i')),
+                    Hidden::make('person_responsible')
+                        ->default(function () {
+                            return auth()->user()->id;
+                        })
+                        ->dehydrateStateUsing(fn ($state) => $state ?? auth()->user()->id),
+                    Placeholder::make('personResponsible')
                         ->label('Person Responsible: ')
                         ->content(function ($record) {
                             if (!empty($record->person_responsible)) {
@@ -56,15 +66,28 @@ class CalendarWidget extends FullCalendarWidget
                             return Venue::select('id', 'name')->pluck('name', 'id');
                         })
                         ->reactive(),
-                    Select::make('unit_id')
-                        ->required()
-                        ->native(false)
-                        ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                    Hidden::make('unit_id')
+                        ->default(function () {
+                            // Fetch the unit name for the authenticated user
+                            $user = auth()->user();
+                            return $user->unit ? $user->unit->id : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                        }),
+                    TextInput::make('unit_name')
                         ->label('Unit/Department')
-                        ->options(function () {
-                            return Unit::select('id', 'name')->pluck('name', 'id');
+                        ->required()
+                        ->maxLength(255)
+                        ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                        ->default(function () {
+                            // Fetch the unit name for the authenticated user
+                            $user = auth()->user();
+                            return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
                         })
-                        ->reactive(),
+                        ->placeholder(function () {
+                            // Fetch the unit name for the authenticated user
+                            $user = auth()->user();
+                            return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                        })
+                        ->readOnly(),
                     TextInput::make('participants')
                         ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
                         ->label('No. of Participants')
@@ -82,7 +105,7 @@ class CalendarWidget extends FullCalendarWidget
                         ->required()
                         ->maxLength(255),
                     DateTimePicker::make('starts_at')
-                        ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
+                        // ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
                         ->seconds(false)
                         ->minDate(today()->addDays(3)->startOfMinute())  // Disallow past dates
                         ->required()
@@ -95,7 +118,7 @@ class CalendarWidget extends FullCalendarWidget
                             );
                         }),
                     DateTimePicker::make('ends_at')
-                        ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
+                        // ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
                         ->seconds(false)
                         ->minDate(fn ($get) => $get('starts_at') ? Carbon::parse($get('starts_at'))->addHour()->startOfMinute() : today()->addDays(3)->addHour()->startOfMinute())
                         ->required()
@@ -177,17 +200,40 @@ class CalendarWidget extends FullCalendarWidget
         ];
     }
 
-    protected function handleFormSubmission(array $data): void
+    // protected function handleFormSubmission(array $data): void
+    // {
+    //     // Here, handle the creation or updating of Booking based on the form data
+    //     // Since `person_responsible` is set as hidden and defaults to the logged-in user's ID,
+    //     // it will be included automatically in $data array.
+
+    //     $data['date_requested'] = now('Asia/Manila')->format('Y-m-d H:i'); // Include both date and time
+    //     $booking = new Booking($data);
+    //     $booking->save();
+
+    //     $this->notify('success', 'Booking created successfully.');
+    //     $this->closeModal();
+    // }
+
+    protected function beforeFill($data): array
     {
-        // Here, handle the creation or updating of Booking based on the form data
-        // Since `person_responsible` is set as hidden and defaults to the logged-in user's ID,
-        // it will be included automatically in $data array.
+        // If the record is being edited, retain the existing date_requested value
+        if (isset($data['date_requested'])) {
+            return $data;
+        }
 
-        $booking = new Booking($data);
-        $booking->save();
+        // Default behavior for new records
+        $data['date_requested'] = now('Asia/Manila')->format('Y-m-d H:i');
+        return $data;
+    }
 
-        $this->notify('success', 'Booking created successfully.');
-        $this->closeModal();
+    protected function beforeSave(array $data): array
+    {
+        // Set the `date_requested` only if it’s a new record
+        if (!$this->record || !$this->record->exists) {
+            $data['date_requested'] = now('Asia/Manila')->format('Y-m-d H:i');
+        }
+
+        return $data;
     }
 
     protected function modalActions(): array

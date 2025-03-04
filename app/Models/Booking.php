@@ -11,7 +11,6 @@ class Booking extends Model
     use HasFactory;
 
     protected $fillable = [
-        'date_requested',
         'venue_id',
         'person_responsible',
         'unit_id',
@@ -19,16 +18,25 @@ class Booking extends Model
         'purpose',
         'starts_at',
         'ends_at',
+        'actual_started_at',
+        'actual_ended_at',
         'status',
         'fund_source',
         'specifics',
+        'date_requested',
         'noted_by',
+        'noted_at',
         'approved_by',
+        'approved_at',
         'approved_by_finance',
+        'approved_by_finance_at',
         'received_by',
+        'received_at',
         'rejected_by',
+        'rejected_at',
         'rejection_reason',
         'canceled_by',
+        'canceled_at',
         'cancelation_reason',
     ];
 
@@ -40,6 +48,14 @@ class Booking extends Model
         'date_requested' => 'datetime',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'actual_started_at' => 'datetime',
+        'actual_ended_at' => 'datetime',
+        'noted_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'approved_by_finance_at' => 'datetime',
+        'received_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'canceled_at' => 'datetime',
     ];
 
     public function hasPendingAction()

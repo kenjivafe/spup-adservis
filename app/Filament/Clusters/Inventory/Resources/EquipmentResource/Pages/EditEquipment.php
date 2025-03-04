@@ -3,8 +3,13 @@
 namespace App\Filament\Clusters\Inventory\Resources\EquipmentResource\Pages;
 
 use App\Filament\Clusters\Inventory\Resources\EquipmentResource;
+use App\Models\Equipment;
 use Filament\Actions;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Enums\MaxWidth;
+use Illuminate\Support\Facades\DB;
 
 class EditEquipment extends EditRecord
 {
@@ -18,7 +23,37 @@ class EditEquipment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\Action::make('Dispose')
+                ->color('gray')
+                ->button()
+                ->modalWidth(MaxWidth::Medium)
+                ->form([
+                    Select::make('disposal_reason')
+                    ->label('Disposal Reason')
+                    ->native(false)
+                    ->options([
+                        'Unrepairable' => 'Unrepairable',
+                        'Obsolete' => 'Obsolete',
+                        'Stolen' => 'Stolen',
+                    ])
+                    ->required()
+                    ->placeholder('Please select a reason for disposal.'),
+                ])
+                ->requiresConfirmation()
+                ->action(function (Equipment $equipment, array $data): void {
+                    $disposalReason = $data['disposal_reason'];
+
+                    DB::transaction(function () use ($equipment, $disposalReason) {
+                        $equipment->update([
+                            'status' => 'Disposed',
+                            'disposal_reason' => $disposalReason,
+                        ]);
+
+                        $this->redirect($this->getResource()::getUrl('edit', ['record' => $equipment->getKey()]));
+                    });
+                })
+                ->visible(fn ($record) => $record->status === 'Inactive')
+                ->icon('heroicon-s-trash'),
         ];
     }
 

@@ -3,14 +3,22 @@
 namespace App\Filament\App\Resources\JobOrderResource\Pages;
 
 use App\Filament\App\Resources\JobOrderResource;
+use App\Models\Equipment;
 use App\Models\JobOrder;
 use App\Models\User;
+use Carbon\Carbon;
 use Filament\Actions;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Fieldset;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Get;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Enums\MaxWidth;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +38,17 @@ class ViewJobOrder extends ViewRecord
         return [
             Actions\ActionGroup::make([
                 Actions\Action::make('Recommend')
+                    ->after(function () {
+                        $jobOrder = $this->record;
+
+                        foreach ($jobOrder->jobOrderEquipments as $jobOrderEquipment) {
+                            $equipment = $jobOrderEquipment->equipment;
+                            if ($equipment) {
+                                $equipment->markAsInactive();
+                                $equipment->save();
+                            }
+                        }
+                    })
                     ->modalWidth(MaxWidth::Medium)
                     ->form([
                         Fieldset::make('Assign a User before recommending to VP Admin')
@@ -84,6 +103,7 @@ class ViewJobOrder extends ViewRecord
                         DB::transaction(function () use ($jobOrder, $assignedTo, $assignedRole) {
                             $jobOrder->update([
                                 'recommended_by' => auth()->id(),
+                                'recommended_at' => Carbon::now(),
                                 'assigned_role' => $assignedRole, // Assuming your model has this field
                                 'assigned_to' => $assignedTo,
                             ]);
@@ -116,6 +136,7 @@ class ViewJobOrder extends ViewRecord
                             $jobOrder->update([
                                 'status' => 'Rejected',
                                 'rejected_by' => auth()->id(),
+                                'rejected_at' => Carbon::now(),
                                 'rejection_reason' => $rejectionReason,
                             ]);
                             $this->redirect($this->getResource()::getUrl('view', ['record' => $jobOrder->getKey()]));
@@ -133,13 +154,62 @@ class ViewJobOrder extends ViewRecord
                 ->label('Recommendation')->icon('heroicon-m-chevron-down')->button()->color('blue'),
 
             Actions\Action::make('Accomplish')
+                ->fillForm(fn (JobOrder $record): array => [
+                    'jobOrderEquipments' => $record->equipment_id,
+                ])
                 ->color('purple')
                 ->button()
+                ->form([
+                        Repeater::make('jobOrderEquipments')
+                            ->visible(fn ($record) => $record->jobOrderEquipments->count() > 0)
+                            ->relationship()
+                            ->default(function ($record) {
+                                return $record->jobOrderEquipments->map(function ($jobOrderEquipment) {
+                                    return [
+                                        'equipment_id' => $jobOrderEquipment->equipment_id,
+                                    ];
+                                })->toArray();
+                            })
+                            ->label('Equipments')
+                            ->schema([
+                                Select::make('equipment_id')
+                                    ->options(
+                                        Equipment::where('status', '!=', 'Disposed') // Filter available equipment
+                                            ->pluck('code', 'id'))
+                                    ->label('')
+                                    ->disabled()
+                                    ->required()
+                                    ->reactive(),
+                                Toggle::make('is_repaired')
+                                    ->label('Is equipment repaired?')
+                                    ->dehydrated(true)
+                            ])
+                            ->addable(false)
+                            ->deletable(false)
+                            ->reorderable(false)
+                            ->grid(2)
+                            ->itemLabel(function (array $state): ?string {
+                                $equipment = Equipment::find($state['equipment_id']);
+                                if ($equipment) {
+                                    return "{$equipment->equipmentBrand->name} {$equipment->equipmentType->name} of {$equipment->unit->name}";
+                                }
+                                return null;
+                            }),
+                ])
                 ->action(function (JobOrder $jobOrder): void {
                     DB::transaction(function () use ($jobOrder) {
                         $jobOrder->update([
                             'accomplished_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                            'accomplished_at' => Carbon::now(),
                         ]);
+
+                        foreach ($jobOrder->jobOrderEquipments as $jobOrderEquipment) {
+                            $jobOrderEquipment->update([
+                                'is_repaired' => $jobOrderEquipment->is_repaired,
+                                'date_repaired' => $jobOrderEquipment->is_repaired ? now() : null,
+                            ]);
+                        }
+
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $jobOrder->getKey()]));
                     });
                 })
@@ -160,7 +230,20 @@ class ViewJobOrder extends ViewRecord
                             'status' => 'Completed',
                             'date_completed' => now('Asia/Manila')->format('Y-m-d H:i'),
                             'checked_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                            'checked_at' => Carbon::now(),
                         ]);
+
+                        foreach ($jobOrder->jobOrderEquipments as $jobOrderEquipment) {
+                            if ($jobOrderEquipment->is_repaired) {
+                                $equipment = $jobOrderEquipment->equipment;
+                                if ($equipment) {
+                                    $equipment->markAsActive();
+                                    $equipment->save();
+                                }
+                            }
+                        }
+
+                        $jobOrder->save();
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $jobOrder->getKey()]));
                     });
                 })
@@ -179,6 +262,7 @@ class ViewJobOrder extends ViewRecord
                     DB::transaction(function () use ($jobOrder) {
                         $jobOrder->update([
                             'confirmed_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                            'confirmed_at' => Carbon::now(),
                         ]);
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $jobOrder->getKey()]));
                     });
@@ -208,6 +292,7 @@ class ViewJobOrder extends ViewRecord
                         $jobOrder->update([
                             'status' => 'Canceled',
                             'canceled_by' => auth()->id(),
+                            'canceled_at' => Carbon::now(),
                             'cancelation_reason' => $cancelationReason
                         ]);
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $jobOrder->getKey()]));

@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Equipment extends Model
 {
-    protected $fillable = ['unit_id', 'equipment_category_id', 'equipment_type_id', 'equipment_brand_id', 'code', 'status'];
+    protected $fillable = ['unit_id', 'equipment_category_id', 'equipment_type_id', 'equipment_brand_id', 'code', 'status', 'disposal_reason', 'date_acquired', 'date_disposed'];
+
+    protected $dates = [
+        'date_acquired',
+        'date_disposed',
+    ];
 
     public function unit()
     {
@@ -32,5 +37,15 @@ class Equipment extends Model
     public function jobOrderEquipments()
     {
         return $this->hasMany(JobOrderEquipment::class);
+    }
+
+    public function markAsInactive()
+    {
+        $this->update(['status' => 'Inactive']);
+    }
+
+    public function markAsActive()
+    {
+        $this->update(['status' => 'Active']);
     }
 }

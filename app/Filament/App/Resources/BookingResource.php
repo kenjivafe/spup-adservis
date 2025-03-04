@@ -12,9 +12,11 @@ use App\Rules\BookingDateConflict;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -26,6 +28,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
 
 class BookingResource extends Resource
 {
@@ -97,6 +100,7 @@ class BookingResource extends Resource
                                 return 'Date: ' . now()->format('M d, Y');
                             }),
                         Select::make('venue_id')
+                            ->searchable()
                             ->native(false)
                             ->required()
                             ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>2, 'lg'=>2, 'xl'=>2, '2xl'=>2])
@@ -107,14 +111,46 @@ class BookingResource extends Resource
                             })
                             ->reactive(),
                         Select::make('unit_id')
+                            ->searchable()
+                            ->visible(true)
                             ->required()
-                            ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
-                            ->native(false)
                             ->label('Unit/Department')
                             ->options(function () {
-                                return Unit::select('id', 'name')->pluck('name', 'id');
+                                $user = auth()->user();
+
+                                // If the user is a Unit Head, only show their assigned unit
+                                if ($user->hasRole('Unit Head') && $user->unit) {
+                                    return [$user->unit->id => $user->unit->name];
+                                }
+
+                                // Otherwise, return all units with unit heads
+                                return Unit::whereHas('unitHead')->select('id', 'name')->pluck('name', 'id');
+                            })
+                            ->default(function () {
+                                $user = auth()->user();
+
+                                // Automatically select the user's unit if they are a Unit Head
+                                return $user->hasRole('Unit Head') && $user->unit ? $user->unit->id : null;
                             })
                             ->reactive(),
+                        // TextInput::make('unit_name')
+                        //     ->label('Unit/Department')
+                        //     ->disabled(fn () => !auth()->user()->hasRole('Unit Head'))
+                        //     ->hidden(fn () => !auth()->user()->hasRole('Unit Head'))
+                        //     ->required(fn () => auth()->user()->hasRole('Unit Head'))
+                        //     ->maxLength(255)
+                        //     ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                        //     ->default(function () {
+                        //         // Fetch the unit name for the authenticated user
+                        //         $user = auth()->user();
+                        //         return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                        //     })
+                        //     ->placeholder(function () {
+                        //         // Fetch the unit name for the authenticated user
+                        //         $user = auth()->user();
+                        //         return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                        //     })
+                        //     ->readOnly(),
                         Forms\Components\TextInput::make('participants')
                         ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
                             ->label('No. of Participants')
@@ -146,16 +182,16 @@ class BookingResource extends Resource
                             }),
                         Forms\Components\DateTimePicker::make('ends_at')
                             ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
-                                ->seconds(false)
-                                ->minDate(fn ($get) => $get('starts_at') ? Carbon::parse($get('starts_at'))->addHour()->startOfMinute() : today()->addDays(3)->addHour()->startOfMinute())
-                                ->required()
-                                ->rule(function ($get) {
-                                    return new BookingDateConflict(
-                                        $get('starts_at'),
-                                        $get('ends_at'),
-                                        $get('venue_id')
-                                    );
-                                }),
+                            ->seconds(false)
+                            ->minDate(fn ($get) => $get('starts_at') ? Carbon::parse($get('starts_at'))->addHour()->startOfMinute() : today()->addDays(3)->addHour()->startOfMinute())
+                            ->required()
+                            ->rule(function ($get) {
+                                return new BookingDateConflict(
+                                    $get('starts_at'),
+                                    $get('ends_at'),
+                                    $get('venue_id')
+                                );
+                            }),
                     ]),
                 Group::make([
                     Section::make('Specifications')
@@ -164,6 +200,7 @@ class BookingResource extends Resource
                     ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
                     ->schema([
                         Forms\Components\MarkdownEditor::make('specifics')
+                            ->maxLength(255)
                             ->label(''),
                     ]),
                 Section::make()
@@ -172,8 +209,15 @@ class BookingResource extends Resource
                         ->schema([
                             Placeholder::make('noted_by')
                                 ->columnSpan('full')
-                                ->label('')
-                                ->hint('Noted by:')
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Noted by: </span>'))
+                                ->hint(function ($record) {
+                                    if (!$record) {
+                                        return ''; // If the record does not exist
+                                    }
+                                    if (!empty($record->noted_at)) {
+                                        return $record ? $record->noted_at->format('M d, Y - h:i a') : '';
+                                    }
+                                })
                                 ->content(function ($record) {
                                     if (!empty($record->noted_by)) {
                                         $user = User::find($record->noted_by); // Fetch user details based on approved_by field
@@ -184,8 +228,27 @@ class BookingResource extends Resource
                                 }),
                             Placeholder::make('approved_by')
                                 ->columnSpan('full')
-                                ->label('')
-                                ->hint('Approved by:')
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Approved by: </span>'))
+                                ->hint(function ($record) {
+                                    $approvalDates = [];
+
+                                    // Fetch Admin approval details if available
+                                    if (!empty($record->approved_at)) {
+                                        $approvalDates[] = $record ? $record->approved_at->format('M d, Y - h:i a') . ' (VPA)' : '';
+                                    }
+
+                                    // Fetch Finance approval details if available
+                                    if (!empty($record->approved_by_finance)) {
+                                        $approvalDates[] = $record ? $record->approved_by_finance_at->format('M d, Y - h:i a') . ' (VPF)' : '';
+                                    }
+
+                                    // Return formatted string of names or default message
+                                    if (count($approvalDates) > 0) {
+                                        return implode(' & ', $approvalDates);
+                                    } else {
+                                        return ' ';
+                                    }
+                                })
                                 ->content(function ($record) {
                                     $approvalNames = [];
 
@@ -224,7 +287,30 @@ class BookingResource extends Resource
                                         return ' '; // If status is null, return an empty space
                                     }
                                 }),
-                        ])
+                            ]),
+                Section::make()
+                    ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
+                    ->columns(2)
+                    ->schema([
+                        Placeholder::make('actual_started_at')
+                            ->columnSpan('1')
+                            ->label('')
+                            ->hint('Actual time booking started: ')
+                            ->content(function ($record) {
+                                return $record && $record->actual_started_at
+                                    ? $record->actual_started_at->format('M d, Y h:i a')
+                                    : 'N/A';
+                            }),
+                        Placeholder::make('actual_ended_at')
+                            ->columnSpan('1')
+                            ->label('')
+                            ->hint('Actual time booking ended: ')
+                            ->content(function ($record) {
+                                return $record && $record->actual_started_at
+                                    ? $record->actual_started_at->format('M d, Y h:i a')
+                                    : 'N/A';
+                            }),
+                    ])->visible(fn ($record) => !empty($record)),
                 ])->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
             ]);
     }

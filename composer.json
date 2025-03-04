@@ -30,6 +30,7 @@
         "malzariey/filament-daterangepicker-filter": "^2.7",
         "saade/filament-autograph": "^3.1",
         "saade/filament-fullcalendar": "3.0",
+        "spatie/browsershot": "^4.3",
         "spatie/laravel-activitylog": "^4.8",
         "spatie/laravel-permission": "^6.7",
         "spatie/laravel-sluggable": "^3.6"

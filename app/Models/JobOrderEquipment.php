@@ -8,6 +8,14 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class JobOrderEquipment extends Pivot
 {
+    protected $casts = [
+        'is_repaired' => 'boolean',
+    ];
+
+    protected $dates = [
+        'date_repaired',
+    ]; 
+
     public function jobOrder(): BelongsTo
     {
         return $this->belongsTo(JobOrder::class);

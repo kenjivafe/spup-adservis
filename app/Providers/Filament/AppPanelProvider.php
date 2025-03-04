@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\UniversityInfoWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -22,7 +23,6 @@ use App\Filament\AvatarProviders\BoringAvatarsProvider;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use Filament\Navigation\MenuItem;
 use App\Filament\Pages\Auth\EditProfile;
-use App\Filament\Widgets\UniversityInfoWidget;
 use App\Http\Middleware\HandleForbidden;
 use App\Livewire\UserProfile;
 use Filament\Pages\Auth\Register;
@@ -41,7 +41,7 @@ class AppPanelProvider extends PanelProvider
             ->path('app')
             ->login()
             ->registration(Register::class)
-            // ->emailVerification()
+            ->emailVerification()
             ->passwordReset()
             // ->profile(EditProfile::class)
             ->userMenuItems([
@@ -72,6 +72,7 @@ class AppPanelProvider extends PanelProvider
             ->font('Noto Sans')
             ->discoverResources(in: app_path('Filament/App/Resources'), for: 'App\\Filament\\App\\Resources')
             ->discoverPages(in: app_path('Filament/App/Pages'), for: 'App\\Filament\\App\\Pages')
+            ->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\\Filament\\App\\Clusters')
             ->pages([
                 Pages\Dashboard::class,
             ])

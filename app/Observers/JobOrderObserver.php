@@ -19,8 +19,8 @@ class JobOrderObserver
         $assignedUser = User::find($jobOrder->assigned_to);
         $requester = User::find($jobOrder->requested_by);
         $usersWithPermission = User::permission('Recommend Job Orders')->get();
-        $jobOrderUrl = route('filament.admin.resources.job-orders.edit', ['record' => $jobOrder->id]);
-        $appJobOrderUrl = route('filament.app.resources.job-orders.edit', ['record' => $jobOrder->id]);
+        $jobOrderUrl = route('filament.admin.resources.job-orders.view', ['record' => $jobOrder->id]);
+        $appJobOrderUrl = route('filament.app.resources.job-orders.view', ['record' => $jobOrder->id]);
 
         // Notification for the submitter
         if ($requester) {
@@ -30,7 +30,7 @@ class JobOrderObserver
                 ->success()
                 ->actions([
                     Action::make('view')
-                        ->url($appJobOrderUrl),  // Provide the link to the Job Order detail page
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
                 ])
                 ->send()
                 ->sendToDatabase($requester);
@@ -44,7 +44,7 @@ class JobOrderObserver
                 ->success()
                 ->actions([
                     Action::make('view')
-                        ->url($jobOrderUrl),  // Provide the link to the Job Order detail page
+                        ->url($appJobOrderUrl),  // Provide the link to the Job Order detail page
                 ])
                 ->sendToDatabase($user);
         }
@@ -67,8 +67,8 @@ class JobOrderObserver
      */
     public function updated(JobOrder $jobOrder): void
     {
-        $jobOrderUrl = route('filament.admin.resources.job-orders.edit', ['record' => $jobOrder->id]);
-        $appJobOrderUrl = route('filament.app.resources.job-orders.edit', ['record' => $jobOrder->id]);
+        $jobOrderUrl = route('filament.admin.resources.job-orders.view', ['record' => $jobOrder->id]);
+        $appJobOrderUrl = route('filament.app.resources.job-orders.view', ['record' => $jobOrder->id]);
         $requester = User::find($jobOrder->requested_by);
         $recommender = User::find($jobOrder->recommended_by);
         $approver = User::find($jobOrder->approved_by);
@@ -85,10 +85,10 @@ class JobOrderObserver
                     ->title('Job Order Recommended')
                     ->body("Your Job Order '{$jobOrder->job_order_title}' has been recommended by " . ($recommender ? $recommender->full_name : "an unknown user"))
                     ->success()
-                    ->actions([
-                        Action::make('view')
-                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
+                ])
                     ->sendToDatabase($requester);
             }
 
@@ -98,10 +98,10 @@ class JobOrderObserver
                     ->title('Job Order Recommended')
                     ->body("You have recommended the job order '{$jobOrder->job_order_title}' of {$requester->full_name}.")
                     ->success()
-                    ->actions([
-                        Action::make('view')
-                            ->url($jobOrderUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
+                ])
                     ->send()
                     ->sendToDatabase($recommender);
             }
@@ -138,7 +138,12 @@ class JobOrderObserver
                         ->success()
                         ->actions([
                             Action::make('view')
-                                ->url($appJobOrderUrl)
+                                ->visible(fn () => !auth()->user()->hasRole('Admin'))
+                                ->url($appJobOrderUrl),
+
+                            Action::make('view')
+                                ->visible(fn () => auth()->user()->hasRole('Admin'))
+                                ->url($jobOrderUrl),
                         ])
                         ->sendToDatabase($requester);
                 }
@@ -157,7 +162,7 @@ class JobOrderObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
                     ])
                     ->sendToDatabase($requester);
             }
@@ -185,7 +190,7 @@ class JobOrderObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($jobOrderUrl)  // Link to the Job Order detail page
+                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
                     ])
                     ->sendToDatabase($recommender);
             }
@@ -197,10 +202,10 @@ class JobOrderObserver
                     ->title('Job Order Rejected')
                     ->body("Your Job Order '{$jobOrder->job_order_title}' has been rejected by " . ($rejecter ? $rejecter->full_name : "an unknown user" . "for the reason:  '{$jobOrder->rejection_reason}'"))
                     ->danger()
-                    ->actions([
-                        Action::make('view')
-                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
+                ])
                     ->sendToDatabase($requester);
             }
 
@@ -211,7 +216,7 @@ class JobOrderObserver
                     ->danger()
                     ->actions([
                         Action::make('view')
-                            ->url($jobOrderUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
                     ])
                     ->send()
                     ->sendToDatabase($rejecter);
@@ -226,7 +231,7 @@ class JobOrderObserver
                     ->danger()
                     ->actions([
                         Action::make('view')
-                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
                     ])
                     ->sendToDatabase($requester);
             }
@@ -238,7 +243,7 @@ class JobOrderObserver
                     ->danger()
                     ->actions([
                         Action::make('view')
-                            ->url($jobOrderUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
                     ])
                     ->send()
                     ->sendToDatabase($canceler);
@@ -253,7 +258,7 @@ class JobOrderObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
                     ])
                     ->sendToDatabase($requester);
             }
@@ -265,7 +270,7 @@ class JobOrderObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($jobOrderUrl)  // Link to the Job Order detail page
+                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
                     ])
                     ->send()
                     ->sendToDatabase($recommender);
@@ -278,7 +283,7 @@ class JobOrderObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($jobOrderUrl)  // Link to the Job Order detail page
+                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
                     ])
                     ->sendToDatabase($assignedUser);
             }
@@ -292,7 +297,7 @@ class JobOrderObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
                     ])
                     ->send()
                     ->sendToDatabase($requester);
@@ -305,7 +310,7 @@ class JobOrderObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($jobOrderUrl)  // Link to the Job Order detail page
+                            ->url($appJobOrderUrl)  // Link to the Job Order detail page
                     ])
                     ->sendToDatabase($recommender);
             }

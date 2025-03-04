@@ -10,6 +10,7 @@ use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade as PDF;
 use Filament\Forms\Components\Textarea;
+use Spatie\Browsershot\Browsershot;
 
 class EditJobOrder extends EditRecord
 {
@@ -80,12 +81,34 @@ class EditJobOrder extends EditRecord
                 ])
                 ->label('Approval')->icon('heroicon-o-chevron-down')->button()->color('yellow'),
 
-            $pdfAction = Action::make('downloadPdf')
-                ->color('blue')
+                Action::make('Generate PDF')
+                ->button()
                 ->label('PDF')
-                ->url(fn (JobOrder $record): string => route('job_orders.job-order-pdf', $record))
-                ->icon('heroicon-o-arrow-down-tray')
-                ->button(),
+                ->color('gray')
+                ->icon('heroicon-s-document-arrow-down')
+                ->action(function (JobOrder $record) {
+                    // Create HTML content using a template engine like Blade
+                    $html = view('pdfs.job-order', ['jobOrder' => $record, 'title' => 'UNIV-025'])->render();
+                    $headerHtml = view('pdfs.header')->render();
+                    $footerHtml = view('pdfs.footer')->render();
+
+                    // Generate PDF
+                    Browsershot::html($html)
+                    ->waitUntilNetworkIdle()
+                    ->writeOptionsToFile()
+                    // ->showBrowserHeaderAndFooter()
+                    // ->headerHtml($headerHtml)
+                    // ->footerHtml($footerHtml)
+                    ->format('A4')
+                    ->landscape()
+                    ->showBackground()
+                    ->margins(12, 10, 12, 10)
+                    ->save('job-order-' . $record->id . '.pdf');
+
+                    // You can also return a download response:
+                    return response()->download(public_path('job-order-' . $record->id . '.pdf'))
+                    ->deleteFileAfterSend(true);
+                }),
 
             Actions\Action::make('Cancel')
                 ->label('Cancel Job Order')

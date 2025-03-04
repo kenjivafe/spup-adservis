@@ -101,19 +101,19 @@ class DatabaseSeeder extends Seeder
             ->givePermissionTo(Permission::all());
 
         Role::create(['name' => 'Staff'])
-            ->givePermissionTo('Manage Venue Bookings', 'Manage Job Orders', 'Manage Sticker Applications');
+            ->givePermissionTo('Manage Venue Bookings', 'Manage Job Orders', 'Manage Sticker Applications', 'Apply for Sticker');
 
         Role::create(['name' => 'Unit Head'])
-            ->givePermissionTo(['Post Job Orders', 'Note Venue Bookings']);
+            ->givePermissionTo(['Post Job Orders', 'Note Venue Bookings', 'Apply for Sticker', 'Book Venues']);
 
         Role::create(['name' => 'PP/GS Head'])
-            ->givePermissionTo(['Recommend Job Orders']);
+            ->givePermissionTo(['Recommend Job Orders', 'Apply for Sticker', 'Apply for Sticker']);
 
         Role::create(['name' => 'Maintenance'])
-            ->givePermissionTo(['Be Assigned to Job Orders']);
+            ->givePermissionTo(['Be Assigned to Job Orders', 'Apply for Sticker']);
 
         Role::create(['name' => 'Contractor'])
-            ->givePermissionTo(['Be Assigned to Job Orders']);
+            ->givePermissionTo(['Be Assigned to Job Orders', 'Apply for Sticker']);
 
         Role::create(['name' => 'Employee'])
             ->givePermissionTo(['Book Venues', 'Apply for Sticker']);
@@ -122,27 +122,27 @@ class DatabaseSeeder extends Seeder
             ->givePermissionTo(['Book Venues', 'Apply for Sticker']);
 
         Role::create(['name' => 'VP Finance'])
-            ->givePermissionTo(['Approve Venue Bookings as Finance']);
+            ->givePermissionTo(['Approve Venue Bookings as Finance', 'Apply for Sticker']);
 
         Role::create(['name' => 'Facilitator'])
-            ->givePermissionTo(['Be In-charge of Venues']);
+            ->givePermissionTo(['Be In-charge of Venues', 'Apply for Sticker']);
 
 
-        foreach (Role::all() as $role) {
-            User::factory(10)->create()->each(function ($user) {
-                // Randomly assign either 'Student' or 'Employee' role to each user
-                $role = ['Student', 'Employee'][rand(0, 1)];
-                $user->assignRole($role);
-            });
-        }
+        // foreach (Role::all() as $role) {
+        //     User::factory(10)->create()->each(function ($user) {
+        //         // Randomly assign either 'Student' or 'Employee' role to each user
+        //         $role = ['Student', 'Employee'][rand(0, 1)];
+        //         $user->assignRole($role);
+        //     });
+        // }
 
-        foreach (Role::all() as $role) {
-            User::factory(2)->create()->each(function ($user) {
-                // Randomly assign either 'Student' or 'Employee' role to each user
-                $role = ['Maintenance', 'Contractor'][rand(0, 1)];
-                $user->assignRole($role);
-            });
-        }
+        // foreach (Role::all() as $role) {
+        //     User::factory(2)->create()->each(function ($user) {
+        //         // Randomly assign either 'Student' or 'Employee' role to each user
+        //         $role = ['Maintenance', 'Contractor'][rand(0, 1)];
+        //         $user->assignRole($role);
+        //     });
+        // }
 
         $this->seedVenues();
 

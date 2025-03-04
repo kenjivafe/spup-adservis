@@ -22,6 +22,8 @@ class BookingObserver
         $bookingUrl = route('filament.admin.resources.bookings.view', ['record' => $booking->id]);
         $appBookingUrl = route('filament.app.resources.bookings.view', ['record' => $booking->id]);
 
+        // dd($unit);
+
         if ($personResponsible) {
             Notification::make()
                 ->title($booking->purpose)
@@ -29,7 +31,7 @@ class BookingObserver
                 ->success()
                 ->actions([
                     Action::make('view')
-                        ->url($appBookingUrl),
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
                 ])
                 ->send()
                 ->sendToDatabase($personResponsible);
@@ -74,6 +76,9 @@ class BookingObserver
         $rejecter = User::find($booking->rejected_by);
         $canceler = User::find($booking->canceled_by);
 
+
+        // dd($facilitator);
+        // dd($unitHead);
         if ($booking->isDirty('noted_by')) {
 
             if ($personResponsible) {
@@ -84,7 +89,7 @@ class BookingObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($appBookingUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
                     ])
                     ->sendToDatabase($personResponsible);
             }
@@ -125,10 +130,10 @@ class BookingObserver
                     ->title("Booking Approved by {$approver->full_name}")
                     ->body("Your Booking '{$booking->purpose}' has been approved by " . ($approver ? $approver->full_name : "an unknown user") . ". Pending for VP Finance's approval.")
                     ->success()
-                    ->actions([
-                        Action::make('view')
-                            ->url($appBookingUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
+                ])
                     ->sendToDatabase($personResponsible);
             }
 
@@ -158,6 +163,19 @@ class BookingObserver
                     ])
                     ->sendToDatabase($bookingFinancers);
             }
+
+            if ($facilitator) {
+                // Notification for the approver that they have approved the job order
+                Notification::make()
+                    ->title("Booking Approved by {$approver->full_name}")
+                    ->body("{$approver->full_name} have approved the booking '{$booking->purpose}' of {$personResponsible->full_name}. Pending for your reception.")
+                    ->success()
+                    ->actions([
+                        Action::make('view')
+                            ->url($appBookingUrl)  // Link to the Job Order detail page
+                    ])
+                    ->sendToDatabase($facilitator);
+            }
         }
 
         if ($booking->isDirty('approved_by_finance')) {
@@ -168,10 +186,10 @@ class BookingObserver
                     ->title("Booking Approved by {$financeApprover->full_name}")
                     ->body("Your Booking '{$booking->purpose}' has been approved by " . ($financeApprover ? $financeApprover->full_name : "an unknown user") . ". Pending for Facilitator's Reception.")
                     ->success()
-                    ->actions([
-                        Action::make('view')
-                            ->url($appBookingUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
+                ])
                     ->sendToDatabase($personResponsible);
             }
 
@@ -197,7 +215,7 @@ class BookingObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($booking)  // Link to the Job Order detail page
+                            ->url($appBookingUrl)  // Link to the Job Order detail page
                     ])
                     ->sendToDatabase($facilitator);
             }
@@ -211,10 +229,10 @@ class BookingObserver
                     ->title("Booking Received")
                     ->body("Your Booking '{$booking->purpose}' has been received by " . ($receiver ? $receiver->full_name : "an unknown user"))
                     ->success()
-                    ->actions([
-                        Action::make('view')
-                            ->url($appBookingUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
+                ])
                     ->sendToDatabase($personResponsible);
             }
 
@@ -229,7 +247,7 @@ class BookingObserver
                             ->url($appBookingUrl)  // Link to the Job Order detail page
                     ])
                     ->send()
-                    ->sendToDatabase($financeApprover);
+                    ->sendToDatabase($receiver);
             }
         }
 
@@ -239,10 +257,10 @@ class BookingObserver
                     ->title('Booking Rejected')
                     ->body("Your Booking '{$booking->purpose}' has been rejected by " . ($rejecter ? $rejecter->full_name : "an unknown user" . "for the reason:  '{$booking->rejection_reason}'"))
                     ->danger()
-                    ->actions([
-                        Action::make('view')
-                            ->url($appBookingUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
+                ])
                     ->sendToDatabase($personResponsible);
             }
 
@@ -251,10 +269,10 @@ class BookingObserver
                     ->title('Booking Rejected')
                     ->body("You have rejected the booking '{$booking->job_order_title}'.")
                     ->danger()
-                    ->actions([
-                        Action::make('view')
-                            ->url($listBookingUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
+                ])
                     ->send()
                     ->sendToDatabase($rejecter);
             }
@@ -278,10 +296,10 @@ class BookingObserver
                     ->title('Booking Canceled')
                     ->body("You have canceled the booking '{$booking->purpose}'.")
                     ->danger()
-                    ->actions([
-                        Action::make('view')
-                            ->url($listBookingUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
+                ])
                     ->send()
                     ->sendToDatabase($canceler);
             }
@@ -293,10 +311,10 @@ class BookingObserver
                     ->title('Booking Started')
                     ->body("Your Booking '{$booking->purpose}' has started.")
                     ->danger()
-                    ->actions([
-                        Action::make('view')
-                            ->url($appBookingUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
+                ])
                     ->sendToDatabase($personResponsible);
             }
         }
@@ -307,10 +325,10 @@ class BookingObserver
                     ->title('Booking Started')
                     ->body("Your Booking '{$booking->purpose}' has ended.")
                     ->danger()
-                    ->actions([
-                        Action::make('view')
-                            ->url($appBookingUrl)  // Link to the Job Order detail page
-                    ])
+                ->actions([
+                    Action::make('view')
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $bookingUrl : $appBookingUrl)
+                ])
                     ->sendToDatabase($personResponsible);
             }
         }

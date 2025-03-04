@@ -4,8 +4,11 @@ namespace App\Filament\App\Resources\BookingResource\Pages;
 
 use App\Filament\App\Resources\BookingResource;
 use App\Models\Booking;
+use Carbon\Carbon;
 use Filament\Actions;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +27,7 @@ class ViewBooking extends ViewRecord
                                 // Update the status of the current booking to 'Approved'
                                 $booking->update([
                                     'noted_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                                    'noted_at' => Carbon::now(),
                                 ]);
                             });
                         })
@@ -39,7 +43,8 @@ class ViewBooking extends ViewRecord
                         ->action(function (Booking $booking): void {
                             $booking->update([
                                 'status' => 'Rejected',
-                                'rejected_by' => auth()->user()->id
+                                'rejected_by' => auth()->user()->id,
+                                'rejected_at' => Carbon::now(),
                             ]);
                         })
                         ->visible(fn ($record) =>
@@ -59,6 +64,7 @@ class ViewBooking extends ViewRecord
                             $booking->update([
                                 'status' => 'Approved',
                                 'approved_by_finance' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                                'approved_by_finance_at' => Carbon::now(),
                             ]);
 
                             $booking->save();
@@ -66,7 +72,7 @@ class ViewBooking extends ViewRecord
                         });
                     })
                     ->visible(fn ($record) =>
-                        optional($record)->status === 'Pending' &&
+                        // optional($record)->status === 'Pending' &&
                         !empty($record->approved_by) &&
                         is_null($record->approved_by_finance) &&
                         auth()->user()->can('Approve Venue Bookings as Finance')
@@ -89,13 +95,14 @@ class ViewBooking extends ViewRecord
                             $booking->update([
                                 'status' => 'Rejected',
                                 'rejected_by' => auth()->id(),
+                                'rejected_at' => Carbon::now(),
                                 'rejection_reason' => $rejectionReason,
                             ]);
                             $this->redirect($this->getResource()::getUrl('view', ['record' => $booking->getKey()]));
                         });
                     })
                     ->visible(fn ($record) =>
-                        optional($record)->status === 'Pending' &&
+                        // optional($record)->status === 'Pending' &&
                         is_null($record->approved_by_finance) &&
                         !is_null($record->approved_by) &&
                         is_null($record->rejected_by) &&
@@ -107,11 +114,25 @@ class ViewBooking extends ViewRecord
 
                 Actions\Action::make('Receive')
                 ->color('blue')
-                ->action(function (Booking $booking): void {
-                    DB::transaction(function () use ($booking) {
+                ->form([
+                    DateTimePicker::make('actual_started_at')
+                        ->seconds(false)
+                        ->required(),
+                    DateTimePicker::make('actual_ended_at')
+                        ->seconds(false)
+                        ->required()
+                ])
+                ->action(function (Booking $booking, array $data,): void {
+                    $actualStartedAt = $data['actual_started_at'];
+                    $actualEndedAt = $data['actual_ended_at'];
+
+                    DB::transaction(function () use ($booking, $actualStartedAt, $actualEndedAt) {
                         $booking->update([
                             'status' => 'Confirmed',
                             'received_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                            'received_at' => Carbon::now(),
+                            'actual_started_at' => $actualStartedAt,
+                            'actual_ended_at' => $actualEndedAt,
                         ]);
 
                         $booking->save();
@@ -121,7 +142,7 @@ class ViewBooking extends ViewRecord
                 ->visible(fn ($record) =>
                     ($record)->status === 'Approved' &&
                     !empty($record->approved_by) &&
-                    !empty($record->approved_by_finance) &&
+                    // !empty($record->approved_by_finance) &&
                     is_null($record->received_by) &&
                     auth()->user()->can('Be In-charge of Venues')
                 )
@@ -131,12 +152,12 @@ class ViewBooking extends ViewRecord
                 ->label('Edit Booking')
                 ->icon('heroicon-o-pencil-square')
                 ->visible(function ($record) {
-                    return auth()->id() === $record->person_responsible;
+                    return auth()->id() === $record->person_responsible && empty($record->noted_by) ;
                 }),
 
             Actions\Action::make('Cancel')
                 ->label('Cancel Job Order')
-                ->color('danger')
+                ->color('gray')
                 ->form([
                     Textarea::make('cancelation_reason')
                         ->label('Cancelation Reason')
@@ -151,6 +172,7 @@ class ViewBooking extends ViewRecord
                         $booking->update([
                             'status' => 'Canceled',
                             'canceled_by' => auth()->id(),
+                            'canceled_at' => Carbon::now(),
                             'cancelation_reason' => $cancelationReason
                         ]);
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $booking->getKey()]));

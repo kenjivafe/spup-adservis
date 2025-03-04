@@ -10,11 +10,15 @@ use App\Models\User;
 use App\Models\Venue;
 use App\Rules\BookingDateConflict;
 use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Filament\Forms;
 use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -26,6 +30,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
+use Spatie\Browsershot\Browsershot;
 
 class BookingResource extends Resource
 {
@@ -64,6 +71,7 @@ class BookingResource extends Resource
                                 return 'Date: ' . now()->format('M d, Y');
                             }),
                         Select::make('venue_id')
+                            ->searchable()
                             ->native(false)
                             ->required()
                             ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>2, 'lg'=>2, 'xl'=>2, '2xl'=>2])
@@ -73,15 +81,28 @@ class BookingResource extends Resource
                                 return Venue::select('id', 'name')->pluck('name', 'id');
                             })
                             ->reactive(),
-                        Forms\Components\Select::make('unit_id')
-                            ->required()
-                            ->native(false)
-                            ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                        Hidden::make('unit_id')
+                            ->default(function () {
+                                // Fetch the unit name for the authenticated user
+                                $user = auth()->user();
+                                return $user->unit ? $user->unit->id : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                            }),
+                        TextInput::make('unit_name')
                             ->label('Unit/Department')
-                            ->options(function () {
-                                return Unit::select('id', 'name')->pluck('name', 'id');
+                            ->required()
+                            ->maxLength(255)
+                            ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                            ->default(function () {
+                                // Fetch the unit name for the authenticated user
+                                $user = auth()->user();
+                                return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
                             })
-                            ->reactive(),
+                            ->placeholder(function () {
+                                // Fetch the unit name for the authenticated user
+                                $user = auth()->user();
+                                return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                            })
+                            ->readOnly(),
                         Forms\Components\TextInput::make('participants')
                         ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
                             ->label('No. of Participants')
@@ -101,7 +122,7 @@ class BookingResource extends Resource
                         Forms\Components\DateTimePicker::make('starts_at')
                         ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
                             ->seconds(false)
-                            ->minDate(today()->startOfMinute())  // Disallow past dates
+                            ->minDate(today()->addDays(3)->startOfMinute())  // Disallow past dates
                             ->required()
                             ->reactive()
                             ->rule(function ($get) {
@@ -114,7 +135,7 @@ class BookingResource extends Resource
                         Forms\Components\DateTimePicker::make('ends_at')
                         ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
                             ->seconds(false)
-                            ->minDate(fn ($get) => $get('starts_at') ? Carbon::parse($get('starts_at'))->addHour()->startOfMinute() : today()->addHour()->startOfMinute())
+                            ->minDate(fn ($get) => $get('starts_at') ? Carbon::parse($get('starts_at'))->addHour()->startOfMinute() : today()->addDays(3)->addHour()->startOfMinute())
                             ->required()
                             ->rule(function ($get) {
                                 return new BookingDateConflict(
@@ -126,72 +147,129 @@ class BookingResource extends Resource
                         ]),
                     Group::make([
                         Section::make('Specifications')
-                        ->description('Arrangements/Things Needed')
-                        ->icon('heroicon-m-information-circle')
-                        ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
-                        ->schema([
-                            Forms\Components\MarkdownEditor::make('specifics')
-                                ->label(''),
-                        ]),
-                    Section::make()
-                        ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
+                            ->description('Arrangements/Things Needed')
+                            ->icon('heroicon-m-information-circle')
+                            ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
+                            ->schema([
+                                Forms\Components\MarkdownEditor::make('specifics')
+                                    ->maxLength(255)
+                                    ->label(''),
+                            ]),
+                        Section::make()
+                            ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
                             ->columns(2)
                             ->schema([
-                            Placeholder::make('noted_by')
-                                ->columnSpan('full')
-                                ->label('')
-                                ->hint('Noted by:')
-                                ->content(function ($record) {
-                                    if (!empty($record->noted_by)) {
-                                        $user = User::find($record->noted_by); // Fetch user details based on approved_by field
-                                        return $user ? $user->full_name : 'User not found';
-                                    } else {
-                                        return ' '; // If status is null, return an empty space
-                                    }
-                                }),
-                            Placeholder::make('approved_by')
-                                ->columnSpan('full')
-                                ->label('')
-                                ->hint('Approved by:')
-                                ->content(function ($record) {
-                                    $approvalNames = [];
-
-                                    // Fetch Admin approval details if available
-                                    if (!empty($record->approved_by)) {
-                                        $admin = User::find($record->approved_by);
-                                        if ($admin) {
-                                            $approvalNames[] = $admin->full_name . ' (VP Admin)';
+                                Placeholder::make('noted_by')
+                                    ->columnSpan('full')
+                                    ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Noted by: </span>'))
+                                    ->hint(function ($record) {
+                                        if (!$record) {
+                                            return ''; // If the record does not exist
                                         }
-                                    }
-
-                                    // Fetch Finance approval details if available
-                                    if (!empty($record->approved_by_finance)) {
-                                        $finance = User::find($record->approved_by_finance);
-                                        if ($finance) {
-                                            $approvalNames[] = $finance->full_name . ' (VP Finance)';
+                                        if (!empty($record->noted_at)) {
+                                            return $record ? $record->noted_at->format('M d, Y - h:i a') : '';
                                         }
-                                    }
+                                    })
+                                    ->content(function ($record) {
+                                        if (!empty($record->noted_by)) {
+                                            $user = User::find($record->noted_by); // Fetch user details based on approved_by field
+                                            return $user ? $user->full_name : 'User not found';
+                                        } else {
+                                            return ' '; // If status is null, return an empty space
+                                        }
+                                    }),
+                                Placeholder::make('approved_by')
+                                    ->columnSpan('full')
+                                    ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Approved by: </span>'))
+                                    ->hint(function ($record) {
+                                        $approvalDates = [];
 
-                                    // Return formatted string of names or default message
-                                    if (count($approvalNames) > 0) {
-                                        return implode(' and ', $approvalNames);
-                                    } else {
-                                        return ' ';
-                                    }
-                                }),
-                            Placeholder::make('received_by')
-                                ->columnSpan('full')
+                                        // Fetch Admin approval details if available
+                                        if (!empty($record->approved_at)) {
+                                            $approvalDates[] = $record ? $record->approved_at->format('M d, Y - h:i a') . ' (VPA)' : '';
+                                        }
+
+                                        // Fetch Finance approval details if available
+                                        if (!empty($record->approved_by_finance)) {
+                                            $approvalDates[] = $record ? $record->approved_by_finance_at->format('M d, Y - h:i a') . ' (VPF)' : '';
+                                        }
+
+                                        // Return formatted string of names or default message
+                                        if (count($approvalDates) > 0) {
+                                            return implode(' & ', $approvalDates);
+                                        } else {
+                                            return ' ';
+                                        }
+                                    })
+                                    ->content(function ($record) {
+                                        $approvalNames = [];
+
+                                        // Fetch Admin approval details if available
+                                        if (!empty($record->approved_by)) {
+                                            $admin = User::find($record->approved_by);
+                                            if ($admin) {
+                                                $approvalNames[] = $admin->full_name . ' (VP Admin)';
+                                            }
+                                        }
+
+                                        // Fetch Finance approval details if available
+                                        if (!empty($record->approved_by_finance)) {
+                                            $finance = User::find($record->approved_by_finance);
+                                            if ($finance) {
+                                                $approvalNames[] = $finance->full_name . ' (VP Finance)';
+                                            }
+                                        }
+
+                                        // Return formatted string of names or default message
+                                        if (count($approvalNames) > 0) {
+                                            return implode(' and ', $approvalNames);
+                                        } else {
+                                            return ' ';
+                                        }
+                                    }),
+                                Placeholder::make('received_by')
+                                    ->columnSpan('full')
+                                    ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Received by: </span>'))
+                                    ->hint(function ($record) {
+                                        if (!$record) {
+                                            return ''; // If the record does not exist
+                                        }
+                                        if (!empty($record->received_at)) {
+                                            return $record ? $record->received_at->format('M d, Y - h:i a') : '';
+                                        }
+                                    })
+                                    ->content(function ($record) {
+                                        if (!empty($record->received_by)) {
+                                            $user = User::find($record->received_by); // Fetch user details based on approved_by field
+                                            return $user ? $user->full_name : 'User not found';
+                                        } else {
+                                            return ' '; // If status is null, return an empty space
+                                        }
+                                    }),
+                                ]),
+                        Section::make()
+                            ->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
+                            ->columns(2)
+                            ->schema([
+                            Placeholder::make('actual_started_at')
+                                ->columnSpan('1')
                                 ->label('')
-                                ->hint('Received by:')
+                                ->hint('Actual time booking started: ')
                                 ->content(function ($record) {
-                                    if (!empty($record->received_by)) {
-                                        $user = User::find($record->received_by); // Fetch user details based on approved_by field
-                                        return $user ? $user->full_name : 'User not found';
-                                    } else {
-                                        return ' '; // If status is null, return an empty space
-                                    }
+                                    return $record && $record->actual_started_at
+                                        ? $record->actual_started_at->format('M d, Y h:i a')
+                                        : 'N/A';
                                 }),
-                        ])
+                            Placeholder::make('actual_ended_at')
+                                ->columnSpan('1')
+                                ->label('')
+                                ->hint('Actual time booking ended: ')
+                                ->content(function ($record) {
+                                    return $record && $record->actual_started_at
+                                        ? $record->actual_started_at->format('M d, Y h:i a')
+                                        : 'N/A';
+                                }),
+                            ])->visible(fn ($record) => !empty($record)),
                     ])->columnSpan(['default'=>2, 'sm'=>2, 'md'=>1, 'lg'=>2, 'xl'=>1, '2xl'=>1])
             ]);
     }
@@ -382,6 +460,18 @@ class BookingResource extends Resource
                 }
             })
             ->filters([
+                DateRangeFilter::make('created_at')->label('Date Range'),
+                SelectFilter::make('venue_id')
+                    ->label('Venue')
+                    ->searchable()
+                    ->native(false)
+                    ->options(function () {
+                        return Venue::query()
+                            ->select('id', 'name')
+                            ->distinct()
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    }),
                 SelectFilter::make('status')
                     ->options([
                         'Pending' => 'Pending',
@@ -393,13 +483,45 @@ class BookingResource extends Resource
                         'Rejected' => 'Rejected',
                         'Canceled' => 'Canceled',
                     ])
-                    ->multiple()
+                    ->multiple(),
                 ])
             ->actions([
-                ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
-                    Tables\Actions\EditAction::make()->color('primary'),
-                ])
+                Action::make('Generate PDF')
+                    ->button()
+                    ->color('gray')
+                    ->label('PDF')
+                    ->icon('heroicon-s-document-arrow-down')
+                    ->action(function (Booking $record) {
+                        // Create HTML content using a template engine like Blade
+                        $html = view('pdfs.venue-booking', ['booking' => $record, 'title' => 'UNIV-029'])->render();
+
+                        // Generate PDF
+                        // Instantiate DOMPDF
+                        $dompdf = new Dompdf();
+
+                        // Set DOMPDF options if needed (for example, for custom margins, etc.)
+                        $options = new Options();
+                        $options->set('isHtml5ParserEnabled', true); // Enable HTML5 parsing
+                        $options->set('isPhpEnabled', true); // Enable PHP functions like include()
+                        $dompdf->setOptions($options);
+
+                        // Load HTML content
+                        $dompdf->loadHtml($html);
+
+                        // (Optional) Set paper size and orientation (A4, Portrait/Landscape)
+                        $dompdf->setPaper('A4', 'landscape');
+
+                        // Render PDF (first pass to parse HTML and CSS)
+                        $dompdf->render();
+
+                        // Save the generated PDF to a file
+                        $output = $dompdf->output();
+                        $filePath = public_path('venue-booking-' . $record->id . '.pdf');
+                        file_put_contents($filePath, $output);
+
+                        // Return the generated PDF for download
+                        return response()->download($filePath)->deleteFileAfterSend(true);
+                    }),
             ]);
     }
 

@@ -48,7 +48,10 @@ class ParkingStickerApplicationResource extends Resource
     // Restrict creating records
     public static function canCreate(): bool
     {
-        return auth()->user()->can('Apply for Sticker');
+        return auth()->user()->can('Apply for Sticker') &&
+        !ParkingStickerApplication::where('applicant_id', auth()->id())
+                                   ->whereIn('status', ['Pending', 'Active'])
+                                   ->exists();
     }
 
     // Restrict editing records
@@ -189,6 +192,8 @@ class ParkingStickerApplicationResource extends Resource
                                     return 'I respectfully apply for a SPUP vehicle entrance/parking sticker. I am willing to pay the amount of ' . $stickerCost . ' for the sticker which is good for one school year and should be transferrable and that it is a privilege subject to present and future SPUP regulations. It may be withdrawn for cause by SPUP. The privilege to park in the designated areas is on a first come-first served basis. Parking may not be available during special occasions.';
                                 })->columnSpan(1),
                                 SignaturePad::make('signature')->columnSpan(1)
+                                    ->penColor('#4c944b')
+                                    ->penColorOnDark('#4c944b')
                                     ->required()
                                     ->label(__('Signature of Applicant'))
                                     ->dotSize(2.0)

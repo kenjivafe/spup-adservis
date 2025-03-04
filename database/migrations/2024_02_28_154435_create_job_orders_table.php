@@ -23,15 +23,22 @@ return new class extends Migration
             $table->string('assigned_role')->nullable();
             $table->foreignId('requested_by')->nullable()->constrained()->on('users')->onDelete('cascade');
             $table->foreignId('canceled_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('canceled_at')->nullable();
             $table->text('cancelation_reason')->nullable();
             $table->foreignId('recommended_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('recommended_at')->nullable();
             $table->foreignId('rejected_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('rejected_at')->nullable();
             $table->text('rejection_reason')->nullable();
             $table->foreignId('approved_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('approved_at')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained()->on('users')->onDelete('cascade');
             $table->foreignId('accomplished_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('accomplished_at')->nullable();
             $table->foreignId('checked_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('checked_at')->nullable();
             $table->foreignId('confirmed_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('confirmed_at')->nullable();
             $table->enum('status', ['Pending', 'Canceled', 'Rejected', 'Assigned', 'Completed',])->default('Pending');
             $table->dateTime('date_begun')
                 ->nullable();

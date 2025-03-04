@@ -17,6 +17,8 @@ return new class extends Migration
             $table->id();
             $table->foreignIdFor(Equipment::class);
             $table->foreignIdFor(JobOrder::class);
+            $table->boolean('is_repaired')->default(false);
+            $table->date('date_repaired')->nullable();
             $table->timestamps();
         });
     }

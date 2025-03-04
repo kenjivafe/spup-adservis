@@ -15,9 +15,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('applicant_id')->nullable()->constrained()->on('users')->onDelete('cascade');
             $table->foreignId('approved_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('approved_at')->nullable();
             $table->foreignId('rejected_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('rejected_at')->nullable();
             $table->text('rejection_reason')->nullable();
             $table->foreignId('revoked_by')->nullable()->constrained()->on('users')->onDelete('cascade');
+            $table->dateTime('revoked_at')->nullable();
             $table->text('revocation_reason')->nullable();
             $table->string('department_id')->nullable()->constrained()->on('departments')->onDelete('cascade');
             $table->string('vehicle_id')->nullable()->constrained()->on('vehicles')->onDelete('cascade');

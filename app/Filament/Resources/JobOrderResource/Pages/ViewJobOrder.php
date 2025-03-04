@@ -5,11 +5,15 @@ namespace App\Filament\Resources\JobOrderResource\Pages;
 use App\Filament\Resources\JobOrderResource;
 use App\Models\JobOrder;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Illuminate\Support\Facades\DB;
+use Spatie\Browsershot\Browsershot;
 
 class ViewJobOrder extends ViewRecord
 {
@@ -24,6 +28,74 @@ class ViewJobOrder extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('Generate PDF')
+            ->button()
+            ->label('PDF')
+            ->color('gray')
+            ->icon('heroicon-s-document-arrow-down')
+            ->action(function (JobOrder $record) {
+                // Create HTML content using a template engine like Blade
+                $html = view('pdfs.job-order', ['jobOrder' => $record, 'title' => 'UNIV-025'])->render();
+
+                // Generate PDF
+                // Instantiate DOMPDF
+                $dompdf = new Dompdf();
+
+                // Set DOMPDF options if needed (for example, for custom margins, etc.)
+                $options = new Options();
+                $options->set('isHtml5ParserEnabled', true); // Enable HTML5 parsing
+                $options->set('isPhpEnabled', true); // Enable PHP functions like include()
+                $dompdf->setOptions($options);
+
+                // Load HTML content
+                $dompdf->loadHtml($html);
+
+                // (Optional) Set paper size and orientation (A4, Portrait/Landscape)
+                $dompdf->setPaper('A4', 'landscape');
+
+                // Render PDF (first pass to parse HTML and CSS)
+                $dompdf->render();
+
+                // Save the generated PDF to a file
+                $output = $dompdf->output();
+                $filePath = public_path('job-order-' . $record->id . '.pdf');
+                file_put_contents($filePath, $output);
+
+                // Return the generated PDF for download
+                return response()->download($filePath)->deleteFileAfterSend(true);
+            }),
+
+            Actions\Action::make('Cancel')
+                ->label('Cancel Job Order')
+                ->color('danger')
+                ->form([
+                    Textarea::make('cancelation_reason')
+                        ->label('Cancelation Reason')
+                        ->required()
+                        ->placeholder('Please provide a reason for cancelation.'),
+                ])
+                ->requiresConfirmation()
+                ->action(function (JobOrder $jobOrder, array $data,): void {
+                    $cancelationReason = $data['cancelation_reason'];
+
+                    DB::transaction(function () use ($jobOrder, $cancelationReason) {
+                        $jobOrder->update([
+                            'status' => 'Canceled',
+                            'canceled_by' => auth()->id(),
+                            'canceled_at' => Carbon::now(),
+                            'cancelation_reason' => $cancelationReason
+                        ]);
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $jobOrder->getKey()]));
+                    });
+                })
+                ->visible(fn ($record) =>
+                    $record->status != 'Completed' &&
+                    $record->status != 'Rejected' &&
+                    empty($record->canceled_by) &&
+                    auth()->user()->can('Manage Job Orders')
+                )
+                ->icon('heroicon-o-no-symbol'),
+
             Actions\ActionGroup::make([
                 Actions\Action::make('Approve')
                     ->color('primary')
@@ -31,7 +103,9 @@ class ViewJobOrder extends ViewRecord
                         DB::transaction(function () use ($jobOrder) {
                             $jobOrder->update([
                                 'status' => 'Assigned',
+                                'date_begun' => now('Asia/Manila')->format('Y-m-d H:i'),
                                 'approved_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                                'approved_at' => Carbon::now(),
                             ]);
 
                             $jobOrder->save();
@@ -61,6 +135,7 @@ class ViewJobOrder extends ViewRecord
                             $jobOrder->update([
                                 'status' => 'Rejected',
                                 'rejected_by' => auth()->id(),
+                                'rejected_at' => Carbon::now(),
                                 'rejection_reason' => $rejectionReason,
                             ]);
                             $this->redirect($this->getResource()::getUrl('view', ['record' => $jobOrder->getKey()]));
@@ -76,42 +151,25 @@ class ViewJobOrder extends ViewRecord
                 ])
                 ->label('Approval')->icon('heroicon-o-chevron-down')->button()->color('yellow'),
 
-            Action::make('downloadPdf')
-                ->color('blue')
-                ->label('PDF')
-                ->url(fn (JobOrder $record): string => route('job_orders.job-order-pdf', $record))
-                ->icon('heroicon-o-arrow-down-tray')
-                ->button(),
-
-            Actions\Action::make('Cancel')
-                ->label('Cancel Job Order')
-                ->color('danger')
-                ->form([
-                    Textarea::make('cancelation_reason')
-                        ->label('Cancelation Reason')
-                        ->required()
-                        ->placeholder('Please provide a reason for cancelation.'),
-                ])
-                ->requiresConfirmation()
-                ->action(function (JobOrder $jobOrder, array $data,): void {
-                    $cancelationReason = $data['cancelation_reason'];
-
-                    DB::transaction(function () use ($jobOrder, $cancelationReason) {
+            Actions\Action::make('Confirm')
+                ->color('primary')
+                ->button()
+                ->action(function (JobOrder $jobOrder): void {
+                    DB::transaction(function () use ($jobOrder) {
                         $jobOrder->update([
-                            'status' => 'Canceled',
-                            'canceled_by' => auth()->id(),
-                            'cancelation_reason' => $cancelationReason
+                            'confirmed_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                            'confirmed_at' => Carbon::now(),
                         ]);
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $jobOrder->getKey()]));
                     });
                 })
                 ->visible(fn ($record) =>
-                    $record->status != 'Completed' &&
-                    $record->status != 'Rejected' &&
-                    empty($record->canceled_by) &&
-                    auth()->user()->can('Manage Job Orders')
+                    $record->status === 'Completed' &&
+                    empty($record->confirmed_by) &&
+                    !empty($record->checked_by) &&
+                    auth()->user()->id == $record->requested_by
                 )
-                ->icon('heroicon-o-no-symbol'),
+                ->icon('heroicon-s-check-badge'),
         ];
     }
 }

@@ -88,14 +88,28 @@ class VenueBookings extends Component implements HasForms, HasTable
                                 ->disabled(true),
                             Hidden::make('venue_id')
                                 ->default($currentVenueId),
-                            Select::make('unit_id')
-                                ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
-                                ->native(false)
+                            Hidden::make('unit_id')
+                                ->default(function () {
+                                    // Fetch the unit name for the authenticated user
+                                    $user = auth()->user();
+                                    return $user->unit ? $user->unit->id : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                                }),
+                            TextInput::make('unit_name')
                                 ->label('Unit/Department')
-                                ->options(function () {
-                                    return Unit::select('id', 'name')->pluck('name', 'id');
+                                ->required()
+                                ->maxLength(255)
+                                ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                                ->default(function () {
+                                    // Fetch the unit name for the authenticated user
+                                    $user = auth()->user();
+                                    return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
                                 })
-                                ->reactive(),
+                                ->placeholder(function () {
+                                    // Fetch the unit name for the authenticated user
+                                    $user = auth()->user();
+                                    return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                                })
+                                ->readOnly(),
                             TextInput::make('participants')
                                 ->label('No. of Participants')
                                 ->numeric()
@@ -121,18 +135,18 @@ class VenueBookings extends Component implements HasForms, HasTable
                                         $get('venue_id')
                                     );
                                 }),
-                                DateTimePicker::make('ends_at')
-                                ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
-                                    ->seconds(false)
-                                    ->minDate(fn ($get) => $get('starts_at') ? Carbon::parse($get('starts_at'))->addHour()->startOfMinute() : today()->addDays(3)->addHour()->startOfMinute())
-                                    ->required()
-                                    ->rule(function ($get) {
-                                        return new BookingDateConflict(
-                                            $get('starts_at'),
-                                            $get('ends_at'),
-                                            $get('venue_id')
-                                        );
-                                    }),
+                            DateTimePicker::make('ends_at')
+                                // ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
+                                ->seconds(false)
+                                ->minDate(fn ($get) => $get('starts_at') ? Carbon::parse($get('starts_at'))->addHour()->startOfMinute() : today()->addDays(3)->addHour()->startOfMinute())
+                                ->required()
+                                ->rule(function ($get) {
+                                    return new BookingDateConflict(
+                                        $get('starts_at'),
+                                        $get('ends_at'),
+                                        $get('venue_id')
+                                    );
+                                }),
                         ]),
                     Section::make('Specifications')
                         ->description('Arrangements/Things Needed')

@@ -4,10 +4,15 @@ namespace App\Filament\Resources\ParkingStickerApplicationResource\Pages;
 
 use App\Filament\Resources\ParkingStickerApplicationResource;
 use App\Models\ParkingStickerApplication;
+use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Filament\Actions;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\DB;
+use Spatie\Browsershot\Browsershot;
 
 class EditParkingStickerApplication extends EditRecord
 {
@@ -16,6 +21,44 @@ class EditParkingStickerApplication extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('Generate PDF')
+                ->button()
+                ->color('gray')
+                ->label('PDF')
+                ->icon('heroicon-s-document-arrow-down')
+                ->action(function (ParkingStickerApplication $record) {
+                    $stickerCost = '₱______';
+
+                    if ($record && $record->vehicle) {
+                        $stickerCost =  number_format($record->vehicle->sticker_cost, 2) . 'php';
+                    }
+                    // Create HTML content using a template engine like Blade
+                    $html = view('pdfs.parking-sticker-application', ['application' => $record, 'title' => 'ADM-001', 'stickerCost' => $stickerCost])->render();
+                    // Set up DOMPDF options
+                    $options = new Options();
+                    $options->set('isHtml5ParserEnabled', true);
+                    $options->set('isRemoteEnabled', true);
+                    $options->set('isPhpEnabled', true); // Enable PHP functions in Blade view (like Carbon or custom functions)
+
+                    $dompdf = new Dompdf($options);
+
+                    // Load the HTML content
+                    $dompdf->loadHtml($html);
+
+                    // (Optional) Set paper size and orientation (A4, landscape in this case)
+                    $dompdf->setPaper('A4', 'landscape'); // If you want portrait orientation, you can set it to 'portrait'
+
+                    // Render the PDF (first pass)
+                    $dompdf->render();
+
+                    // Output the PDF to a file
+                    $output = $dompdf->output();
+                    $filePath = public_path('parking-sticker-application-' . $record->id . '.pdf');
+                    file_put_contents($filePath, $output);
+
+                    // Return the PDF as a download response
+                    return response()->download($filePath)->deleteFileAfterSend(true);
+                }),
             Actions\ActionGroup::make([
                 Actions\Action::make('Approve')
                     ->color('primary')
@@ -26,6 +69,7 @@ class EditParkingStickerApplication extends EditRecord
                             $application->update([
                                 'status' => 'Active',
                                 'approved_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                                'approved_at' => Carbon::now(),
                                 'expiration_date' => $expirationDate,
                             ]);
 
@@ -56,6 +100,7 @@ class EditParkingStickerApplication extends EditRecord
                             $application->update([
                                 'status' => 'Rejected',
                                 'rejected_by' => auth()->id(),
+                                'rejected_at' => Carbon::now(),
                                 'rejection_reason' => $rejectionReason,
                             ]);
                         });
@@ -87,6 +132,7 @@ class EditParkingStickerApplication extends EditRecord
                         $application->update([
                             'status' => 'Revoked',
                             'revoked_by' => auth()->id(),
+                            'revoked_at' => Carbon::now(),
                             'revocation_reason' => $revocationReason,
                         ]);
                     });

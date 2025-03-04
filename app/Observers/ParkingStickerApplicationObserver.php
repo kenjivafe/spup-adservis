@@ -70,7 +70,7 @@ class ParkingStickerApplicationObserver
                 ->success()
                 ->actions([
                     Action::make('view')
-                        ->url($appApplicationUrl),
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $applicationUrl : $appApplicationUrl)
                 ])
                 ->send()
                 ->sendToDatabase($applicant);
@@ -83,7 +83,7 @@ class ParkingStickerApplicationObserver
                 ->success()
                 ->actions([
                     Action::make('view')
-                        ->url($applicationUrl),
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $applicationUrl : $appApplicationUrl)
                 ])
                 ->sendToDatabase($applicationManagers);
         }
@@ -108,7 +108,7 @@ class ParkingStickerApplicationObserver
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->url($appApplicationUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $applicationUrl : $appApplicationUrl)
                     ])
                     ->sendToDatabase($applicant);
             }
@@ -136,7 +136,7 @@ class ParkingStickerApplicationObserver
                     ->danger()
                     ->actions([
                         Action::make('view')
-                            ->url($appApplicationUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $applicationUrl : $appApplicationUrl)
                     ])
                     ->sendToDatabase($applicant);
             }
@@ -148,7 +148,7 @@ class ParkingStickerApplicationObserver
                     ->danger()
                     ->actions([
                         Action::make('view')
-                            ->url($applicationUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $applicationUrl : $appApplicationUrl)
                     ])
                     ->send()
                     ->sendToDatabase($rejecter);
@@ -163,7 +163,7 @@ class ParkingStickerApplicationObserver
                     ->danger()
                     ->actions([
                         Action::make('view')
-                            ->url($appApplicationUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $applicationUrl : $appApplicationUrl)
                     ])
                     ->sendToDatabase($applicant);
             }
@@ -175,7 +175,7 @@ class ParkingStickerApplicationObserver
                     ->danger()
                     ->actions([
                         Action::make('view')
-                            ->url($applicationUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $applicationUrl : $appApplicationUrl)
                     ])
                     ->send()
                     ->sendToDatabase($revoker);
@@ -190,7 +190,7 @@ class ParkingStickerApplicationObserver
                     ->danger()
                     ->actions([
                         Action::make('view')
-                            ->url($appApplicationUrl)  // Link to the Job Order detail page
+                            ->url(fn () => auth()->user()->hasRole('Admin') ? $applicationUrl : $appApplicationUrl)
                     ])
                     ->sendToDatabase($applicant);
             }

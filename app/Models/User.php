@@ -17,7 +17,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Traits\HasPermissions;
 
-class User extends Authenticatable implements FilamentUser, HasAvatar//, MustVerifyEmail
+class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, HasPermissions;
 

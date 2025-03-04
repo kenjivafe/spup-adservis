@@ -4,7 +4,9 @@ use App\Models\JobOrder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Http\Controllers\Auth\EmailVerificationController;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
+use Spatie\Browsershot\Browsershot;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,6 +20,25 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
+
+    // $html = view('pdfs.example')->render();
+
+    // $pdf = Browsershot::html($html)
+    // ->format('A4')
+    // ->margins(10, 15, 10, 15)
+    // ->pdf();
+
+    // return new Response($pdf, 200, [
+    //     'Content-Type' => 'application/pdf',
+    //     'Content-Disposition' => 'attachment; filename="screenshot.pdf"',
+    //     'Content-Length' => strlen($pdf)
+    // ]);
+
+    // return new Response($pdf, 200, [
+    //     'Content-Type' => 'application/pdf',
+    //     'Content-Disposition' => 'inline; filename="screenshot.pdf"'
+    // ]);
+
     return view('welcome');
 });
 

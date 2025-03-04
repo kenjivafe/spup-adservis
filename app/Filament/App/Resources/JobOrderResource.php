@@ -3,6 +3,7 @@
 namespace App\Filament\App\Resources;
 
 use App\Filament\App\Resources\JobOrderResource\Pages;
+use App\Models\Equipment;
 use App\Models\JobOrder;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -18,13 +19,16 @@ use Filament\Forms\Components\Builder;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
 use Spatie\Permission\Models\Role; // Assuming Spatie Roles
 
 class JobOrderResource extends Resource
@@ -75,7 +79,8 @@ class JobOrderResource extends Resource
     {
         return $form
             ->schema([
-                Section::make('')
+                Section::make('Job Order Details')
+                    ->description('Complete the details for the job order. This form captures all necessary information for processing the job order efficiently.')
                     ->disabled(function ($get, $livewire) {
                         // Check if there's a record and it's an edit page, and apply conditions
                         if ($livewire instanceof \Filament\Resources\Pages\EditRecord) {
@@ -103,7 +108,7 @@ class JobOrderResource extends Resource
                             // Enable otherwise (including create form)
                             return false;
                         }),
-                        TextInput::make('unit_name')
+                    TextInput::make('unit_name')
                         ->label('Unit Name')
                         ->required()
                         ->maxLength(255)
@@ -248,12 +253,53 @@ class JobOrderResource extends Resource
                         // or if 'assigned_to' is not empty.
                         return in_array($status, ['Canceled', 'Rejected', 'Completed']) || !empty($accomplishedBy);
                     }),
-                Section::make()
+                    Section::make('Equipments to Repair')
+                    ->description('Select equipment that requires repair. This section is only needed for job orders involving equipment maintenance or repair tasks.')
+                    ->schema([
+                        Repeater::make('jobOrderEquipments')
+                            ->relationship()
+                            ->label('')
+                            ->schema([
+                                Select::make('equipment_id')
+                                    ->disableOptionsWhenSelectedInSiblingRepeaterItems()
+                                    ->native(false)
+                                    ->searchable()
+                                    ->label('Property Code')
+                                    ->options(Equipment::where('status', '!=', 'Disposed') // Filter available equipment
+                                        ->pluck('code', 'id'))
+                                    ->required()
+                                    ->reactive(),
+                                Toggle::make('is_repaired')
+                                    ->default(false)
+                                    ->label('Is equipment repaired?')
+                                    ->disabled()
+                                    ->dehydrated(true)
+                            ])
+                            ->defaultItems(0)
+                            ->addActionLabel('Add Equipment')
+                            ->itemLabel(function (array $state): ?string {
+                                $equipment = Equipment::find($state['equipment_id']);
+                                if ($equipment) {
+                                    return "{$equipment->equipmentBrand->name} {$equipment->equipmentType->name} of {$equipment->unit->name}";
+                                }
+                                return null;
+                            })
+                            ->grid(2),
+                    ])->columnSpan(12),
+                Section::make('Approval Flow')
+                    ->description('The job order will be reviewed by the relevant authorities to ensure compliance and accuracy.')
                     ->schema([
                         Group::make([
                             Placeholder::make('requested_by')
-                                ->label('')
-                                ->hint('Requested by:')
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Noted/Recommended by: </span>'))
+                                ->hint(function ($record) {
+                                    if (!$record) {
+                                        return ''; // If the record does not exist
+                                    }
+                                    if (!empty($record->created_at)) {
+                                        return $record ? $record->created_at->format('M d, Y - h:i a') : '';
+                                    }
+                                })
                                 ->content(function ($record) {
                                     if (!empty($record->requested_by)) {
                                         $user = User::find($record->requested_by); // explicitly define $data argument
@@ -262,8 +308,15 @@ class JobOrderResource extends Resource
                                     return auth()->user()->full_name;
                                 }),
                             Placeholder::make('recommended_by')
-                                ->label('')
-                                ->hint('Noted/Recommended by:')
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Noted/Recommended by: </span>'))
+                                ->hint(function ($record) {
+                                    if (!$record) {
+                                        return ''; // If the record does not exist
+                                    }
+                                    if (!empty($record->recommended_at)) {
+                                        return $record ? $record->recommended_at->format('M d, Y - h:i a') : '';
+                                    }
+                                })
                                 ->content(function ($record) {
                                     if (!$record) {
                                         return ''; // If the record does not exist
@@ -274,8 +327,15 @@ class JobOrderResource extends Resource
                                     }
                                 }),
                             Placeholder::make('approved_by')
-                                ->label('')
-                                ->hint('Approved by:')
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Approved by:</span>'))
+                                ->hint(function ($record) {
+                                    if (!$record) {
+                                        return ''; // If the record does not exist
+                                    }
+                                    if (!empty($record->approved_at)) {
+                                        return $record ? $record->approved_at->format('M d, Y - h:i a') : '';
+                                    }
+                                })
                                 ->content(function ($record) {
                                     if (!$record) {
                                         return ''; // If the record does not exist
@@ -290,8 +350,16 @@ class JobOrderResource extends Resource
                             ])->columnSpan(['default' => 6, 'sm' => 6, 'md' => 6, 'lg' => 6, 'xl' => 6, '2xl' => 6]),
                         Group::make([
                             Placeholder::make('accomplished_by')
-                                ->label('')
-                                ->hint('Accomplished by:')
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Accomplished by:</span>'))
+                                ->hint(function ($record) {
+                                    if (!$record) {
+                                        return ''; // If the record does not exist
+                                    }
+                                    if (!empty($record->accomplished_at)) {
+                                        return $record ? $record->accomplished_at->format('M d, Y - h:i a') : '';
+                                    }
+                                })
+                                ->columnSpan(['default'=>6, 'sm'=>6, 'md'=>6,'lg'=>6, 'xl'=>6, '2xl'=>6])
                                 ->content(function ($record) {
                                     if (!$record) {
                                         return ''; // If the record does not exist
@@ -302,8 +370,16 @@ class JobOrderResource extends Resource
                                     }
                                 }),
                             Placeholder::make('checked_by')
-                                ->label('')
-                                ->hint('Checked by:')
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Checked by:</span>'))
+                                ->hint(function ($record) {
+                                    if (!$record) {
+                                        return ''; // If the record does not exist
+                                    }
+                                    if (!empty($record->checked_at)) {
+                                        return $record ? $record->checked_at->format('M d, Y - h:i a') : '';
+                                    }
+                                })
+                                ->columnSpan(['default'=>6, 'sm'=>6, 'md'=>6,'lg'=>6, 'xl'=>6, '2xl'=>6])
                                 ->content(function ($record) {
                                     if (!$record) {
                                         return ''; // If the record does not exist
@@ -314,8 +390,16 @@ class JobOrderResource extends Resource
                                     }
                                 }),
                             Placeholder::make('confirmed_by')
-                                ->label('')
-                                ->hint('Confirmation: Job finished as requested')
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Confirmation: Job finished as requested</span>'))
+                                ->hint(function ($record) {
+                                    if (!$record) {
+                                        return ''; // If the record does not exist
+                                    }
+                                    if (!empty($record->confirmed_at)) {
+                                        return $record ? $record->confirmed_at->format('M d, Y - h:i a') : '';
+                                    }
+                                })
+                                ->columnSpan(['default'=>6, 'sm'=>6, 'md'=>6,'lg'=>6, 'xl'=>6, '2xl'=>6])
                                 ->content(function ($record) {
                                     if (!$record) {
                                         return ''; // If the record does not exist

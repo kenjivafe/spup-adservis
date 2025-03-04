@@ -21,16 +21,23 @@ class JobOrder extends Model
         'materials',
         'requested_by',
         'canceled_by',
+        'canceled_at',
         'cancelation_reason',
         'recommended_by',
+        'recommended_at',
         'rejected_by',
+        'rejected_at',
         'rejection_reason',
         'approved_by',
+        'approved_at',
         'assigned_role',
         'assigned_to',
         'accomplished_by',
+        'accomplished_at',
         'checked_by',
+        'checked_at',
         'confirmed_by',
+        'confirmed_at',
         'status',
         'date_begun',
         'date_completed',
@@ -41,6 +48,13 @@ class JobOrder extends Model
         'date_needed',
         'date_begun',
         'date_completed',
+        'recommended_at',
+        'approved_at',
+        'accomplished_at',
+        'checked_at',
+        'confirmed_at',
+        'rejected_at',
+        'canceled_at',
     ];
 
     protected $casts = [
@@ -48,6 +62,13 @@ class JobOrder extends Model
         'date_needed'    => 'datetime',
         'date_begun'     => 'datetime',
         'date_completed' => 'datetime',
+        'recommended_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'accomplished_at' => 'datetime',
+        'checked_at' => 'datetime',
+        'confirmed_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'canceled_at' => 'datetime',
     ];
 
     public function hasPendingAction()
@@ -87,12 +108,17 @@ class JobOrder extends Model
         return $this->belongsTo(User::class); // Assuming a belongsTo relationship
     }
 
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class); // Assuming a belongsTo relationship
+    }
+
     public function jobOrderEquipments()
     {
         return $this->hasMany(JobOrderEquipment::class);
     }
 
-    public function equipments()
+    public function equipment()
     {
         return $this->belongsToMany(Equipment::class, 'equipment');
     }

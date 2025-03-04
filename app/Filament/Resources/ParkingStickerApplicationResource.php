@@ -10,6 +10,9 @@ use App\Models\ParkingLimit;
 use App\Models\ParkingStickerApplication;
 use App\Models\User;
 use App\Models\Vehicle;
+use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Filament\Forms;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\Fieldset;
@@ -30,11 +33,14 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 use Saade\FilamentAutograph\Forms\Components\SignaturePad;
+use Spatie\Browsershot\Browsershot;
 
 class ParkingStickerApplicationResource extends Resource
 {
@@ -175,6 +181,8 @@ class ParkingStickerApplicationResource extends Resource
                                     return 'I respectfully apply for a SPUP vehicle entrance/parking sticker. I am willing to pay the amount of ' . $stickerCost . ' for the sticker which is good for one school year and should be transferrable and that it is a privilege subject to present and future SPUP regulations. It may be withdrawn for cause by SPUP. The privilege to park in the designated areas is on a first come-first served basis. Parking may not be available during special occasions.';
                                 })->columnSpan(1),
                                 SignaturePad::make('signature')->columnSpan(1)
+                                    ->penColor('#4c944b')
+                                    ->penColorOnDark('#4c944b')
                                     ->required()
                                     ->label(__('Signature of Applicant'))
                                     ->dotSize(2.0)
@@ -254,6 +262,7 @@ class ParkingStickerApplicationResource extends Resource
 
                         return "No actions taken yet.";
                     }),
+                Tables\Columns\TextColumn::make('department.name'),
                 Tables\Columns\TextColumn::make('plate_number')
                     ->label('Plate Number'),
                 Tables\Columns\TextColumn::make('vehicle.type') // Uses relationship to get vehicle type
@@ -262,11 +271,88 @@ class ParkingStickerApplicationResource extends Resource
                     ->label('Color'),
                 Tables\Columns\TextColumn::make('applicant.full_name') // Uses relationship to get applicant name
                     ->label('Applicant'),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Date Requested')
+                    ->dateTime()
+                    ->formatStateUsing(function ($state) {
+                        $date = Carbon::parse($state);
+                        $now = Carbon::now();
+
+                        if ($date->isToday()) {
+                            return $date->diffForHumans();  // Shows relative time like '3 hours ago'
+                        } elseif ($date->isYesterday()) {
+                            return 'Yesterday';
+                        } elseif ($date->isCurrentYear()) {
+                            return $date->format('d, F');  // Shows 'd, F' for dates two days ago or older
+                        } else {
+                            return $date->format('d, F Y');
+                        }
+                    })
+                    ->sortable(),
             ])
             ->filters([
-                //
-            ])
+                DateRangeFilter::make('created_at')->label('Date Range'),
+                SelectFilter::make('department_id')
+                    ->label('Department')
+                    ->searchable()
+                    ->native(false)
+                    ->options(function () {
+                        return Department::query()
+                            ->select('id', 'name')
+                            ->distinct()
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    }),
+                SelectFilter::make('status')
+                    ->options([
+                        'Pending' => 'Pending',
+                        'Approved' => 'Active',
+                        'Confirmed' => 'Expired',
+                        'Ongoing' => 'Revoked',
+                        'Ended' => 'Canceled',
+                        'Rejected' => 'Rejected',
+                    ])
+                    ->multiple(),
+                ])
             ->actions([
+                Action::make('Generate PDF')
+                    ->button()
+                    ->color('gray')
+                    ->label('PDF')
+                    ->icon('heroicon-s-document-arrow-down')
+                    ->action(function (ParkingStickerApplication $record) {
+                        $stickerCost = '₱______';
+
+                        if ($record && $record->vehicle) {
+                            $stickerCost =  number_format($record->vehicle->sticker_cost, 2) . 'php';
+                        }
+                        // Create HTML content using a template engine like Blade
+                        $html = view('pdfs.parking-sticker-application', ['application' => $record, 'title' => 'ADM-001', 'stickerCost' => $stickerCost])->render();
+                        // Set up DOMPDF options
+                        $options = new Options();
+                        $options->set('isHtml5ParserEnabled', true);
+                        $options->set('isRemoteEnabled', true);
+                        $options->set('isPhpEnabled', true); // Enable PHP functions in Blade view (like Carbon or custom functions)
+
+                        $dompdf = new Dompdf($options);
+
+                        // Load the HTML content
+                        $dompdf->loadHtml($html);
+
+                        // (Optional) Set paper size and orientation (A4, landscape in this case)
+                        $dompdf->setPaper('A4', 'landscape'); // If you want portrait orientation, you can set it to 'portrait'
+
+                        // Render the PDF (first pass)
+                        $dompdf->render();
+
+                        // Output the PDF to a file
+                        $output = $dompdf->output();
+                        $filePath = public_path('parking-sticker-application-' . $record->id . '.pdf');
+                        file_put_contents($filePath, $output);
+
+                        // Return the PDF as a download response
+                        return response()->download($filePath)->deleteFileAfterSend(true);
+                    }),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
