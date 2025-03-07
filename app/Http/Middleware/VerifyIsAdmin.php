@@ -17,10 +17,10 @@ class VerifyIsAdmin
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (auth()->user() && auth()->user()->hasAnyRole([Role::findByName('Admin'), Role::findByName('Staff')])) {
+        if (auth()->user() && auth()->user()->hasAnyRole([Role::findByName('Super Admin'), Role::findByName('Admin')])) {
             return $next($request);
         }
 
-        return redirect('/app');
+        return redirect('/');
     }
 }

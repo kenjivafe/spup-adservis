@@ -19,68 +19,10 @@ use Spatie\Browsershot\Browsershot;
 |
 */
 
-Route::get('/', function () {
-
-    // $html = view('pdfs.example')->render();
-
-    // $pdf = Browsershot::html($html)
-    // ->format('A4')
-    // ->margins(10, 15, 10, 15)
-    // ->pdf();
-
-    // return new Response($pdf, 200, [
-    //     'Content-Type' => 'application/pdf',
-    //     'Content-Disposition' => 'attachment; filename="screenshot.pdf"',
-    //     'Content-Length' => strlen($pdf)
-    // ]);
-
-    // return new Response($pdf, 200, [
-    //     'Content-Type' => 'application/pdf',
-    //     'Content-Disposition' => 'inline; filename="screenshot.pdf"'
-    // ]);
-
+Route::get('/welcome', function () {
     return view('welcome');
 });
 
 Route::get('/email/verify/{id}/{hash}', EmailVerificationController::class)
     ->middleware(['auth', 'signed'])
     ->name('verification.verify');
-
-Route::get('/filament/job-orders/{jobOrder}/pdf', function (App\Models\JobOrder $jobOrder) {
-    $pdf = Pdf::loadView('filament.job_orders.job-order-pdf', ['jobOrder' => $jobOrder]);
-    return $pdf->download('job_order_' . $jobOrder->id . '.pdf');
-})->name('job_orders.job-order-pdf')->middleware(['web', 'auth']); // Ensure the route is protected
-
-Route::get('/filament/job-orders/pdf', function (Request $request) {
-    $query = JobOrder::query();
-
-    // Apply filters
-    if ($request->has('filters')) {
-        $filters = $request->get('filters');
-        if (!empty($filters['status'])) {
-            $query->whereIn('status', $filters['status']);
-        }
-        if (!empty($filters['unit_name'])) {
-            $query->where('unit_name', 'like', '%' . $filters['unit_name'] . '%');
-        }
-        if (!empty($filters['created_at'])) {
-            $dates = explode(' to ', $filters['created_at']);
-            if (count($dates) === 2) {
-                $query->whereBetween('created_at', [$dates[0], $dates[1]]);
-            }
-        }
-    }
-
-    // Apply sorting
-    if ($request->has('sorts')) {
-        foreach ($request->get('sorts') as $sort => $direction) {
-            $query->orderBy($sort, $direction);
-        }
-    }
-
-    $jobOrders = $query->get();
-
-    $pdf = Pdf::loadView('filament.job_orders.job-orders-pdf', ['jobOrders' => $jobOrders]);
-    return $pdf->download('job_orders.pdf');
-})->name('job_orders.job-orders-pdf')->middleware(['auth']);
-

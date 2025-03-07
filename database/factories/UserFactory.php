@@ -62,7 +62,7 @@ class UserFactory extends Factory
             'name' => $name,
             'surname' => $surname,
             'email' => $email,
-            'phone' => '9' . $this->faker->numerify('#########'),
+            // 'phone' => '9' . $this->faker->numerify('#########'),
             'schoolid' => $year . '-' . $this->faker->regexify('[0-9]{2}') . '-' . $this->faker->regexify('[0-9]{4}'),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

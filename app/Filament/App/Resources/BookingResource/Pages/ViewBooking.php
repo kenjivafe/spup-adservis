@@ -5,6 +5,8 @@ namespace App\Filament\App\Resources\BookingResource\Pages;
 use App\Filament\App\Resources\BookingResource;
 use App\Models\Booking;
 use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Filament\Actions;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Textarea;
@@ -19,42 +21,79 @@ class ViewBooking extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-                Actions\ActionGroup::make([
-                    Actions\Action::make('note')
-                        ->label('Note')
-                        ->action(function (Booking $booking): void {
-                            DB::transaction(function () use ($booking) {
-                                // Update the status of the current booking to 'Approved'
-                                $booking->update([
-                                    'noted_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
-                                    'noted_at' => Carbon::now(),
-                                ]);
-                            });
-                        })
-                        ->visible(fn ($record) =>
-                            $record->status === 'Pending' &&
-                            auth()->user()->id === ($record->unit)->unitHead->id &&
-                            empty($record->noted_by))
-                        ->icon('heroicon-s-check')
-                        ->color('success'),
+            Actions\Action::make('Generate PDF')
+                ->button()
+                ->color('gray')
+                ->label('PDF')
+                ->icon('heroicon-s-document-arrow-down')
+                ->action(function (Booking $record) {
+                    // Create HTML content using a template engine like Blade
+                    $html = view('pdfs.venue-booking', ['booking' => $record, 'title' => 'UNIV-029'])->render();
 
-                    Actions\Action::make('disregard')
-                        ->label('Disregard')
-                        ->action(function (Booking $booking): void {
+                    // Generate PDF
+                    // Instantiate DOMPDF
+                    $dompdf = new Dompdf();
+
+                    // Set DOMPDF options if needed (for example, for custom margins, etc.)
+                    $options = new Options();
+                    $options->set('isHtml5ParserEnabled', true); // Enable HTML5 parsing
+                    $options->set('isPhpEnabled', true); // Enable PHP functions like include()
+                    $dompdf->setOptions($options);
+
+                    // Load HTML content
+                    $dompdf->loadHtml($html);
+
+                    // (Optional) Set paper size and orientation (A4, Portrait/Landscape)
+                    $dompdf->setPaper('A4', 'landscape');
+
+                    // Render PDF (first pass to parse HTML and CSS)
+                    $dompdf->render();
+
+                    // Save the generated PDF to a file
+                    $output = $dompdf->output();
+                    $filePath = public_path('venue-booking-' . $record->id . '.pdf');
+                    file_put_contents($filePath, $output);
+
+                    // Return the generated PDF for download
+                    return response()->download($filePath)->deleteFileAfterSend(true);
+                }),
+
+            Actions\ActionGroup::make([
+                Actions\Action::make('note')
+                    ->label('Note')
+                    ->action(function (Booking $booking): void {
+                        DB::transaction(function () use ($booking) {
+                            // Update the status of the current booking to 'Approved'
                             $booking->update([
-                                'status' => 'Rejected',
-                                'rejected_by' => auth()->user()->id,
-                                'rejected_at' => Carbon::now(),
+                                'noted_by' => auth()->id(),  // Assuming 'approved_by' is the field name in your database
+                                'noted_at' => Carbon::now(),
                             ]);
-                        })
-                        ->visible(fn ($record) =>
-                            $record->status === 'Pending' &&
-                            auth()->user()->id === ($record->unit)->unitHead->id &&
-                            empty($record->noted_by) &&
-                            empty($record->rejected_by))
-                        ->icon('heroicon-s-x-circle')
-                        ->color('danger'),
-                    ])->label('Approval')->icon('heroicon-m-chevron-down')->button(),
+                        });
+                    })
+                    ->visible(fn ($record) =>
+                        $record->status === 'Pending' &&
+                        auth()->user()->id === ($record->unit)->unitHead->id &&
+                        empty($record->noted_by))
+                    ->icon('heroicon-s-check')
+                    ->color('success'),
+
+                Actions\Action::make('disregard')
+                    ->label('Disregard')
+                    ->action(function (Booking $booking): void {
+                        $booking->update([
+                            'status' => 'Rejected',
+                            'rejected_by' => auth()->user()->id,
+                            'rejected_at' => Carbon::now(),
+                        ]);
+                    })
+                    ->visible(fn ($record) =>
+                        $record->status === 'Pending' &&
+                        auth()->user()->id === ($record->unit)->unitHead->id &&
+                        empty($record->noted_by) &&
+                        empty($record->rejected_by))
+                    ->icon('heroicon-s-x-circle')
+                    ->color('danger'),
+                ])->label('Approval')->icon('heroicon-m-chevron-down')->button(),
 
             Actions\ActionGroup::make([
                 Actions\Action::make('Approve')

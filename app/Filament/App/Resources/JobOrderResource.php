@@ -291,7 +291,7 @@ class JobOrderResource extends Resource
                     ->schema([
                         Group::make([
                             Placeholder::make('requested_by')
-                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Noted/Recommended by: </span>'))
+                                ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Requested by: </span>'))
                                 ->hint(function ($record) {
                                     if (!$record) {
                                         return ''; // If the record does not exist
@@ -305,7 +305,7 @@ class JobOrderResource extends Resource
                                         $user = User::find($record->requested_by); // explicitly define $data argument
                                         return $user->full_name . ' (Unit Head)';
                                     }
-                                    return auth()->user()->full_name;
+                                    return auth()->user()->full_name . ' (Unit Head)';
                                 }),
                             Placeholder::make('recommended_by')
                                 ->label(new HtmlString('<span style="font-weight: lighter; color: gray;">Noted/Recommended by: </span>'))

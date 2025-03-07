@@ -29,7 +29,7 @@ class EditJobOrder extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            $approvalActions = Actions\ActionGroup::make([
+            Actions\ActionGroup::make([
                 Actions\Action::make('Approve')
                     ->color('primary')
                     ->action(function (JobOrder $jobOrder): void {
@@ -80,35 +80,6 @@ class EditJobOrder extends EditRecord
                     ->icon('heroicon-s-x-circle'),
                 ])
                 ->label('Approval')->icon('heroicon-o-chevron-down')->button()->color('yellow'),
-
-                Action::make('Generate PDF')
-                ->button()
-                ->label('PDF')
-                ->color('gray')
-                ->icon('heroicon-s-document-arrow-down')
-                ->action(function (JobOrder $record) {
-                    // Create HTML content using a template engine like Blade
-                    $html = view('pdfs.job-order', ['jobOrder' => $record, 'title' => 'UNIV-025'])->render();
-                    $headerHtml = view('pdfs.header')->render();
-                    $footerHtml = view('pdfs.footer')->render();
-
-                    // Generate PDF
-                    Browsershot::html($html)
-                    ->waitUntilNetworkIdle()
-                    ->writeOptionsToFile()
-                    // ->showBrowserHeaderAndFooter()
-                    // ->headerHtml($headerHtml)
-                    // ->footerHtml($footerHtml)
-                    ->format('A4')
-                    ->landscape()
-                    ->showBackground()
-                    ->margins(12, 10, 12, 10)
-                    ->save('job-order-' . $record->id . '.pdf');
-
-                    // You can also return a download response:
-                    return response()->download(public_path('job-order-' . $record->id . '.pdf'))
-                    ->deleteFileAfterSend(true);
-                }),
 
             Actions\Action::make('Cancel')
                 ->label('Cancel Job Order')

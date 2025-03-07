@@ -27,15 +27,20 @@ class DatabaseSeeder extends Seeder
     {
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $admin = User::factory()->create([
-            'name' => 'VP',
+        $superAdmin = User::factory()->create([
+            'name' => 'Super',
             'surname' => 'Admin',
-            'email' => 'admin@email.com',
+            'email' => 'admin@adservis.com',
         ]);
-        $staff = User::factory()->create([
-            'name' => 'Staff',
-            'surname' => 'Test',
-            'email' => 'staff@email.com',
+        $admin = User::factory()->create([
+            'name' => 'Sr. Marisa',
+            'surname' => 'Tumbali, SPC',
+            'email' => 'sr_marisa@spup.edu.ph',
+        ]);
+        $genservice = User::factory()->create([
+            'name' => 'Michelle',
+            'surname' => 'Lim',
+            'email' => 'mlim@spup.edu.ph',
         ]);
         $maintenance = User::factory()->create([
             'name' => 'Maintenance',
@@ -46,11 +51,6 @@ class DatabaseSeeder extends Seeder
             'name' => 'Contractor',
             'surname' => 'Test',
             'email' => 'contractor@email.com',
-        ]);
-        $genservice = User::factory()->create([
-            'name' => 'General',
-            'surname' => 'Service',
-            'email' => 'genservice@email.com',
         ]);
         $finance = User::factory()->create([
             'name' => 'VP',
@@ -63,24 +63,24 @@ class DatabaseSeeder extends Seeder
             'email' => 'facilitator@email.com',
         ]);
         $sitehead = User::factory()->create([
-            'name' => 'SITE',
-            'surname' => 'Head',
-            'email' => 'sitehead@email.com',
+            'name' => 'Dr. Marifel Grace',
+            'surname' => 'Kummer',
+            'email' => 'mkummer@spup.edu.ph',
         ]);
         $snahshead = User::factory()->create([
-            'name' => 'SNAHS',
-            'surname' => 'Head',
-            'email' => 'snahshead@email.com',
+            'name' => 'Dr. Anunciacion',
+            'surname' => 'Talosig',
+            'email' => 'atalosig@spup.edu.ph',
         ]);
         $sbahmhead = User::factory()->create([
-            'name' => 'SBAHM',
-            'surname' => 'Head',
-            'email' => 'sbahmhead@email.com',
+            'name' => 'Dr. Charito',
+            'surname' => 'Guillermo',
+            'email' => 'cguillermo@spup.edu.ph',
         ]);
         $sastehead = User::factory()->create([
-            'name' => 'SASTE',
-            'surname' => 'Head',
-            'email' => 'sastehead@email.com',
+            'name' => 'Dr. Evelyn Elizabeth',
+            'surname' => 'Pacquing',
+            'email' => 'epacquing@spup.edu.ph',
         ]);
 
         // create permissions
@@ -97,17 +97,18 @@ class DatabaseSeeder extends Seeder
         Permission::create(['name' => 'Book Venues']);
         Permission::create(['name' => 'Apply for Sticker']);
 
+
+        Role::create(['name' => 'Super Admin'])
+            ->givePermissionTo('Manage Users');
+
         Role::create(['name' => 'Admin'])
             ->givePermissionTo(Permission::all());
 
-        Role::create(['name' => 'Staff'])
-            ->givePermissionTo('Manage Venue Bookings', 'Manage Job Orders', 'Manage Sticker Applications', 'Apply for Sticker');
+        Role::create(['name' => 'PP/GS Head'])
+            ->givePermissionTo(['Manage Users', 'Recommend Job Orders', 'Apply for Sticker', 'Apply for Sticker']);
 
         Role::create(['name' => 'Unit Head'])
             ->givePermissionTo(['Post Job Orders', 'Note Venue Bookings', 'Apply for Sticker', 'Book Venues']);
-
-        Role::create(['name' => 'PP/GS Head'])
-            ->givePermissionTo(['Recommend Job Orders', 'Apply for Sticker', 'Apply for Sticker']);
 
         Role::create(['name' => 'Maintenance'])
             ->givePermissionTo(['Be Assigned to Job Orders', 'Apply for Sticker']);
@@ -146,8 +147,8 @@ class DatabaseSeeder extends Seeder
 
         $this->seedVenues();
 
+        $superAdmin->assignRole('Super Admin');
         $admin->assignRole('Admin');
-        $staff->assignRole('Staff');
         $genservice->assignRole('PP/GS Head');
         $maintenance->assignRole('Maintenance');
         $contractor->assignRole('Contractor');

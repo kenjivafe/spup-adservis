@@ -38,7 +38,7 @@ class AppPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('app')
-            ->path('app')
+            ->path('')
             ->login()
             ->registration(Register::class)
             ->emailVerification()

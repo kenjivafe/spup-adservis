@@ -7,6 +7,8 @@ use App\Models\Equipment;
 use App\Models\JobOrder;
 use App\Models\User;
 use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Filament\Actions;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Fieldset;
@@ -36,6 +38,42 @@ class ViewJobOrder extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('Generate PDF')
+                ->button()
+                ->label('PDF')
+                ->color('gray')
+                ->icon('heroicon-s-document-arrow-down')
+                ->action(function (JobOrder $record) {
+                    // Create HTML content using a template engine like Blade
+                    $html = view('pdfs.job-order', ['jobOrder' => $record, 'title' => 'UNIV-025'])->render();
+
+                    // Generate PDF
+                    // Instantiate DOMPDF
+                    $dompdf = new Dompdf();
+
+                    // Set DOMPDF options if needed (for example, for custom margins, etc.)
+                    $options = new Options();
+                    $options->set('isHtml5ParserEnabled', true); // Enable HTML5 parsing
+                    $options->set('isPhpEnabled', true); // Enable PHP functions like include()
+                    $dompdf->setOptions($options);
+
+                    // Load HTML content
+                    $dompdf->loadHtml($html);
+
+                    // (Optional) Set paper size and orientation (A4, Portrait/Landscape)
+                    $dompdf->setPaper('A4', 'landscape');
+
+                    // Render PDF (first pass to parse HTML and CSS)
+                    $dompdf->render();
+
+                    // Save the generated PDF to a file
+                    $output = $dompdf->output();
+                    $filePath = public_path('job-order-' . $record->id . '.pdf');
+                    file_put_contents($filePath, $output);
+
+                    // Return the generated PDF for download
+                    return response()->download($filePath)->deleteFileAfterSend(true);
+                }),
             Actions\ActionGroup::make([
                 Actions\Action::make('Recommend')
                     ->after(function () {

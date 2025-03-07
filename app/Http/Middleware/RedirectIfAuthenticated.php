@@ -63,7 +63,7 @@ class RedirectIfAuthenticated
         if ($this->userCanManageResources(Auth::user())) {
             return '/admin';
         } else {
-            return '/app';
+            return '/';
         }
     }
 
