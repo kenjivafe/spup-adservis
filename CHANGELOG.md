@@ -1,6 +1,10 @@
 # Release Notes
 
-## [Unreleased](https://github.com/laravel/laravel/compare/v10.3.2...10.x)
+## [Unreleased](https://github.com/laravel/laravel/compare/release...main)
+
+## [release](https://github.com/laravel/laravel/compare/v10.3.2...release) - 2025-03-07
+
+Ready for production server
 
 ## [v10.3.2](https://github.com/laravel/laravel/compare/v10.3.1...v10.3.2) - 2024-01-04
 
