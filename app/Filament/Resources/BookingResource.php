@@ -104,23 +104,30 @@ class BookingResource extends Resource
                             })
                             ->readOnly(),
                         Forms\Components\TextInput::make('participants')
-                        ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
-                            ->label('No. of Participants')
+                            ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                            ->label('No. of participants')
                             ->numeric()
                             ->step(10)
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->rule(function (callable $get) {
+                                $venueId = $get('venue_id'); // Get selected venue ID
+                                $capacity = \App\Models\Venue::find($venueId)?->capacity ?? null;
+
+                                return $capacity ? "max:$capacity" : null;
+                            }, 'The number of participants cannot exceed the venue capacity.')
+                            ->reactive(),
                         Forms\Components\TextInput::make('purpose')
-                        ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                            ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
                             ->required()
                             ->maxLength(255),
                         Forms\Components\TextInput::make('fund_source')
-                        ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
+                            ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
                             ->label('Source of Fund')
                             ->required()
                             ->maxLength(255),
                         Forms\Components\DateTimePicker::make('starts_at')
-                        ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
+                            ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>2, '2xl'=>1])
                             ->seconds(false)
                             ->minDate(today()->addDays(3)->startOfMinute())  // Disallow past dates
                             ->required()

@@ -75,9 +75,9 @@ class RedirectIfAuthenticated
      */
     protected function userCanManageResources($user): bool
     {
-        return $user->can('Manage Job Orders') ||
-               $user->can('Manage Venue Bookings') ||
-               $user->can('Manage Sticker Applications') ||
+        return $user->can('Manage Job Orders') &&
+               $user->can('Manage Venue Bookings') &&
+               $user->can('Manage Sticker Applications') &&
                $user->can('Manage Users');
     }
 }

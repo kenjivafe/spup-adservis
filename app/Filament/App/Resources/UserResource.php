@@ -23,6 +23,7 @@ use Filament\Tables;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Table;
 use Guava\FilamentClusters\Forms\Cluster;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 
@@ -262,5 +263,28 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        // Get the authenticated user
+        $authUser = auth()->user();
+
+        // If the authenticated user is a Super Admin, return all users (no filtering)
+        if ($authUser && $authUser->hasRole('Super Admin')) {
+            return parent::getEloquentQuery(); // No filtering for Super Admin
+        }
+
+        // If the authenticated user is an Admin, exclude users with the "Super Admin" role
+        if ($authUser && $authUser->hasRole('Admin')) {
+            return parent::getEloquentQuery()->whereHas('roles', function ($query) {
+                $query->whereNotIn('name', ['Super Admin']);
+            });
+        }
+
+        // If the authenticated user is neither Admin nor Super Admin, exclude users with "Admin" or "Super Admin" roles
+        return parent::getEloquentQuery()->whereHas('roles', function ($query) {
+            $query->whereNotIn('name', ['Admin', 'Super Admin']);
+        });
     }
 }

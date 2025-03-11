@@ -136,6 +136,20 @@ class RoleResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('name', '!=', 'Admin');
+        // Get the authenticated user
+        $authUser = auth()->user();
+
+        // If the authenticated user is a Super Admin, return all roles (no filtering)
+        if ($authUser && $authUser->hasRole('Super Admin')) {
+            return parent::getEloquentQuery(); // No filtering for Super Admin
+        }
+
+        // If the authenticated user is an Admin, exclude Super Admin role
+        if ($authUser && $authUser->hasRole('Admin')) {
+            return parent::getEloquentQuery()->whereNotIn('name', ['Super Admin']);
+        }
+
+        // If the authenticated user is neither Admin nor Super Admin, exclude both Admin and Super Admin roles
+        return parent::getEloquentQuery()->whereNotIn('name', ['Admin', 'Super Admin']);
     }
 }

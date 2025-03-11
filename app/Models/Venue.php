@@ -19,7 +19,7 @@ class Venue extends Model implements HasMedia
         'facilitator'
     ];
 
-    public function venueHead()
+    public function facilitator()
     {
         return $this->belongsTo(User::class, 'facilitator');
     }

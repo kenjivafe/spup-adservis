@@ -44,7 +44,7 @@ class JobOrderObserver
                 ->success()
                 ->actions([
                     Action::make('view')
-                        ->url($appJobOrderUrl),  // Provide the link to the Job Order detail page
+                        ->url(fn () => auth()->user()->hasRole('Admin') ? $jobOrderUrl : $appJobOrderUrl)
                 ])
                 ->sendToDatabase($user);
         }

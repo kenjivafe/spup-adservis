@@ -258,7 +258,7 @@ class DatabaseSeeder extends Seeder
         Unit::create(['name' => 'Student Affairs Office', 'code' => 'SAO']);
         Unit::create(['name' => 'University Registrar', 'code' => 'UR']);
         Unit::create(['name' => 'Vice-President for Academics', 'code' => 'VPACAD']);
-        Unit::create(['name' => 'Vice-President for Administration', 'code' => 'VPAD', 'unit_head' => '1']);
+        Unit::create(['name' => 'Vice-President for Administration', 'code' => 'VPAD', 'unit_head' => $admin->id]);
 
         EquipmentCategory::create(['name' => 'Computer and Peripheral Equipment', 'code' => '0001']);
         EquipmentCategory::create(['name' => 'Electric Fan', 'code' => '0002']);
