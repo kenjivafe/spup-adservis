@@ -92,7 +92,7 @@ class ParkingStickerApplicationResource extends Resource
                                                 $user = User::find($record->applicant_id);
                                                 return $user->phone;
                                             }
-                                            return auth()->user()->phone;
+                                            return auth()->user()->phone ?? 'No phone available';
                                         })->columnSpan(6),
                                     Radio::make('parking_type')
                                         ->label('Parking Type')

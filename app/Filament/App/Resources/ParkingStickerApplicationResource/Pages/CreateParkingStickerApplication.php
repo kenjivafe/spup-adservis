@@ -23,7 +23,7 @@ class CreateParkingStickerApplication extends CreateRecord
     public function mutateFormDataBeforeCreate(array $data): array
     {
         $data['applicant_id'] = auth()->user()->id;
-        $data['contact_number'] = auth()->user()->phone;
+        $data['contact_number'] = auth()->user()->phone ?? '';
         return $data;
     }
 }
