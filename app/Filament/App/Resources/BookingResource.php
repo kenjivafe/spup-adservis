@@ -118,20 +118,27 @@ class BookingResource extends Resource
                             ->options(function () {
                                 $user = auth()->user();
 
-                                // If the user is a Unit Head, only show their assigned unit
-                                if ($user->hasRole('Unit Head') && $user->unit) {
+                                // If the user is a Unit Head and has an assigned unit, return only their unit
+                                if ($user->unit) {
                                     return [$user->unit->id => $user->unit->name];
                                 }
 
                                 // Otherwise, return all units with unit heads
-                                return Unit::whereHas('unitHead')->select('id', 'name')->pluck('name', 'id');
+                                return Unit::whereHas('unitHead')->pluck('name', 'id');
                             })
                             ->default(function () {
                                 $user = auth()->user();
 
-                                // Automatically select the user's unit if they are a Unit Head
-                                return $user->hasRole('Unit Head') && $user->unit ? $user->unit->id : null;
+                                // If the user is a Unit Head, auto-select their unit
+                                return ($user->unit) ? $user->unit->id : null;
                             })
+                            ->placeholder(function () {
+                                $user = auth()->user();
+
+                                // Only show a placeholder if the user is a Unit Head without a unit
+                                return ($user->hasRole('Unit Head') && !$user->unit) ? 'Ask OVP for unit assignation' : null;
+                            })
+                            ->disabled(fn () => auth()->user()->hasRole('Unit Head')) // Disable selection if they are a Unit Head
                             ->reactive(),
                         // TextInput::make('unit_name')
                         //     ->label('Unit/Department')

@@ -254,14 +254,22 @@ class UserResource extends Resource
 
         // If the authenticated user is an Admin, exclude users with the "Super Admin" role
         if ($authUser && $authUser->hasRole('Admin')) {
-            return parent::getEloquentQuery()->whereHas('roles', function ($query) {
-                $query->whereNotIn('name', ['Super Admin']);
+            return parent::getEloquentQuery()->where(function ($query) {
+                $query->whereHas('roles', function ($query) {
+                    $query->whereNotIn('name', ['Super Admin']);
+                })
+                // Include users who have no roles
+                ->orWhereDoesntHave('roles');
             });
         }
 
         // If the authenticated user is neither Admin nor Super Admin, exclude users with "Admin" or "Super Admin" roles
-        return parent::getEloquentQuery()->whereHas('roles', function ($query) {
-            $query->whereNotIn('name', ['Admin', 'Super Admin']);
+        return parent::getEloquentQuery()->where(function ($query) {
+            $query->whereHas('roles', function ($query) {
+                $query->whereNotIn('name', ['Admin', 'Super Admin']);
+            })
+            // Include users who have no roles
+            ->orWhereDoesntHave('roles');
         });
     }
 }

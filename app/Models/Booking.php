@@ -63,7 +63,7 @@ class Booking extends Model
         // Example condition: job order is pending and assigned to the current user
         return (
             $this->status === 'Pending' &&
-            auth()->user()->id === ($this->unit)->unitHead->id &&
+            $this->unit && $this->unit->unitHead && auth()->user()->id === $this->unit->unitHead->id &&
             empty($this->noted_by)
         )||(
             $this->status === 'Pending' &&

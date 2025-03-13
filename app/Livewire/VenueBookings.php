@@ -88,28 +88,36 @@ class VenueBookings extends Component implements HasForms, HasTable
                                 ->disabled(true),
                             Hidden::make('venue_id')
                                 ->default($currentVenueId),
-                            Hidden::make('unit_id')
-                                ->default(function () {
-                                    // Fetch the unit name for the authenticated user
-                                    $user = auth()->user();
-                                    return $user->unit ? $user->unit->id : 'No Unit Assigned'; // Adjust as necessary for your relationships
-                                }),
-                            TextInput::make('unit_name')
-                                ->label('Unit/Department')
+                            Select::make('unit_id')
+                                ->searchable()
+                                ->visible(true)
                                 ->required()
-                                ->maxLength(255)
-                                ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
-                                ->default(function () {
-                                    // Fetch the unit name for the authenticated user
+                                ->label('Unit/Department')
+                                ->options(function () {
                                     $user = auth()->user();
-                                    return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+
+                                    // If the user is a Unit Head and has an assigned unit, return only their unit
+                                    if ($user->unit) {
+                                        return [$user->unit->id => $user->unit->name];
+                                    }
+
+                                    // Otherwise, return all units with unit heads
+                                    return Unit::whereHas('unitHead')->pluck('name', 'id');
+                                })
+                                ->default(function () {
+                                    $user = auth()->user();
+
+                                    // If the user is a Unit Head, auto-select their unit
+                                    return ($user->unit) ? $user->unit->id : null;
                                 })
                                 ->placeholder(function () {
-                                    // Fetch the unit name for the authenticated user
                                     $user = auth()->user();
-                                    return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+
+                                    // Only show a placeholder if the user is a Unit Head without a unit
+                                    return ($user->hasRole('Unit Head') && !$user->unit) ? 'Ask OVP for unit assignation' : null;
                                 })
-                                ->readOnly(),
+                                ->disabled(fn () => auth()->user()->hasRole('Unit Head')) // Disable selection if they are a Unit Head
+                                ->reactive(),
                             TextInput::make('participants')
                                 ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
                                 ->label('No. of participants')
@@ -446,9 +454,7 @@ class VenueBookings extends Component implements HasForms, HasTable
                                     ->label('Venue'),
                                 TextInput::make('unit.name')
                                     ->label('Unit/Department')
-                                    ->placeholder(function ($record) {
-                                        return $record->unit->name;
-                                    })
+                                    ->placeholder(fn ($record) => $record && $record->unit ? $record->unit->name : 'No Unit Assigned')
                                     ->disabled(),
                                 TextInput::make('participants')
                                     ->label('No. of Participants')

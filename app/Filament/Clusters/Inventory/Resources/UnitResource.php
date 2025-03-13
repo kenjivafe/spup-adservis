@@ -45,7 +45,8 @@ class UnitResource extends Resource
                             ->maxLength(255),
                         Forms\Components\Select::make('unit_head')
                             ->options(User::role('Unit Head')->pluck('full_name', 'id'))
-                            ->required(),
+                            // ->required()
+                            ,
                     ])
             ]);
     }

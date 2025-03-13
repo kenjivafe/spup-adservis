@@ -92,15 +92,12 @@ class BookingResource extends Resource
                             ->required()
                             ->maxLength(255)
                             ->columnSpan(['default'=>2, 'sm'=>1, 'md'=>1, 'lg'=>1, 'xl'=>1, '2xl'=>1])
-                            ->default(function () {
-                                // Fetch the unit name for the authenticated user
-                                $user = auth()->user();
-                                return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+                            ->default(function ($record) {
+                                return $record && $record->unit ? $record->unit->name : (auth()->user()->unit ? auth()->user()->unit->name : 'No Unit Assigned');
                             })
-                            ->placeholder(function () {
-                                // Fetch the unit name for the authenticated user
-                                $user = auth()->user();
-                                return $user->unit ? $user->unit->name : 'No Unit Assigned'; // Adjust as necessary for your relationships
+
+                            ->placeholder(function ($record) {
+                                return $record && $record->unit ? $record->unit->name : (auth()->user()->unit ? auth()->user()->unit->name : 'No Unit Assigned');
                             })
                             ->readOnly(),
                         Forms\Components\TextInput::make('participants')

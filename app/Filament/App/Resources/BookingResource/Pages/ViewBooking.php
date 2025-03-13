@@ -72,6 +72,7 @@ class ViewBooking extends ViewRecord
                     })
                     ->visible(fn ($record) =>
                         $record->status === 'Pending' &&
+                        $record->unit && $record->unit->unitHead &&
                         auth()->user()->id === ($record->unit)->unitHead->id &&
                         empty($record->noted_by))
                     ->icon('heroicon-s-check')
@@ -88,6 +89,7 @@ class ViewBooking extends ViewRecord
                     })
                     ->visible(fn ($record) =>
                         $record->status === 'Pending' &&
+                        $record->unit && $record->unit->unitHead &&
                         auth()->user()->id === ($record->unit)->unitHead->id &&
                         empty($record->noted_by) &&
                         empty($record->rejected_by))
