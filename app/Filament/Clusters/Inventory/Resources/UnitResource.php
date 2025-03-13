@@ -60,6 +60,7 @@ class UnitResource extends Resource
                 Tables\Columns\TextColumn::make('code'),
                 Tables\Columns\TextColumn::make('unitHead.full_name')->label('Unit Head'),
             ])
+            ->defaultSort('name', 'asc')
             ->filters([
                 //
             ])
